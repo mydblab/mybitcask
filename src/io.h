@@ -1,5 +1,8 @@
 #ifndef MYBITCASK_SRC_IO_H_
 #define MYBITCASK_SRC_IO_H_
+
+#include <cstdint>
+
 namespace mybitcask {
 namespace io {
 
