@@ -32,6 +32,11 @@ bool ParseFileName(const std::string& filename, uint64_t* number,
     return false;
   }
 
+  // The maximum number of digits in uint64_t cannot exceed 20
+  if (filename.size() - std::strlen(suffix) - 1 > 20) {
+    return false;
+  }
+
   if (std::strcmp(suffix, LOG_FILE_SUFFIX) == 0) {
     *type = FileType::LogFile;
   } else if (std::strcmp(suffix, HINT_FILE_SUFFIX) == 0) {

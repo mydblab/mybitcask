@@ -16,13 +16,14 @@ TEST(FileNameTest, FileName) {
       {"100.log", 100, FileType::LogFile},
       {"0.log", 0, FileType::LogFile},
       {"0.hint", 0, FileType::HintFile},
-  };
+      {"18446744073709551000.hint", 18446744073709551000ull,
+       FileType::HintFile}};
 
-  for (auto filename_info : cases) {
-    if (filename_info.type == FileType::LogFile) {
-      EXPECT_EQ(LogFileName(filename_info.number), filename_info.filename);
+  for (auto filenameInfo : cases) {
+    if (filenameInfo.type == FileType::LogFile) {
+      EXPECT_EQ(LogFileName(filenameInfo.number), filenameInfo.filename);
     } else {
-      EXPECT_EQ(HintFileName(filename_info.number), filename_info.filename);
+      EXPECT_EQ(HintFileName(filenameInfo.number), filenameInfo.filename);
     }
   }
 }
@@ -35,13 +36,15 @@ TEST(FileNameTest, Parse) {
   uint64_t number;
   FileType type;
 
-  for (auto filename_info : cases) {
-    EXPECT_TRUE(ParseFileName(filename_info.filename, &number, &type));
-    EXPECT_EQ(number, filename_info.number);
-    EXPECT_EQ(type, filename_info.type);
+  for (auto filenameInfo : cases) {
+    EXPECT_TRUE(ParseFileName(filenameInfo.filename, &number, &type));
+    EXPECT_EQ(number, filenameInfo.number);
+    EXPECT_EQ(type, filenameInfo.type);
   }
   std::vector<std::string> errors = {
-      "", "foo", "foo-dx-100.log", ".log", ".hint", "100", "100.", "100.abc"};
+      "",     "foo",     "foo-dx-100.log",
+      ".log", ".hint",   "100",
+      "100.", "100.abc", "184467440737095520001.hint"};
   for (auto filename : errors) {
     EXPECT_FALSE(ParseFileName(filename, &number, &type));
   }
