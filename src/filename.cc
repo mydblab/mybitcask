@@ -16,10 +16,12 @@ static std::string MakeFileName(uint64_t number, const char* suffix) {
 }
 
 std::string LogFileName(uint64_t number) {
+  assert(number > 0);
   return MakeFileName(number, LOG_FILE_SUFFIX);
 }
 
 std::string HintFileName(uint64_t number) {
+  assert(number > 0);
   return MakeFileName(number, HINT_FILE_SUFFIX);
 }
 
