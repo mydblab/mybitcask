@@ -16,12 +16,12 @@ static std::string MakeFileName(uint64_t number, const char* suffix) {
 }
 
 std::string LogFileName(uint64_t number) {
-  assert(number > 0);
+  assert(number >= 0);
   return MakeFileName(number, LOG_FILE_SUFFIX);
 }
 
 std::string HintFileName(uint64_t number) {
-  assert(number > 0);
+  assert(number >= 0);
   return MakeFileName(number, HINT_FILE_SUFFIX);
 }
 
@@ -29,6 +29,11 @@ bool ParseFileName(const std::string& filename, uint64_t* number,
                    FileType* type) {
   char suffix[10];
   if (std::sscanf(filename.c_str(), FILE_NAME_FORMAT, number, suffix) < 2) {
+    return false;
+  }
+
+  // The maximum number of digits in uint64_t cannot exceed 20
+  if (filename.size() - std::strlen(suffix) - 1 > 20) {
     return false;
   }
 
