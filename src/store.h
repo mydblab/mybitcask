@@ -12,6 +12,14 @@
 namespace mybitcask {
 namespace store {
 
+using file_id_t = uint32_t;
+
+// Position represents a position in db files.
+struct Position {
+  file_id_t file_id;
+  uint64_t offset_in_file;
+};
+
 // default dead bytes threshold (128MB)
 const size_t kDefaultDeadBytesThreshold = 128 * 1024 * 1024;
 
@@ -47,19 +55,19 @@ class Store {
 class Reader {
  public:
   size_t Read(char* const dst, const size_t size);
-  void Seek(const io::Position& pos);
+  void Seek(const Position& pos);
 
   Reader() = delete;
   ~Reader();
 
  private:
-  Reader(Store* store, io::file_id_t cur_file_id);
+  Reader(Store* store, file_id_t cur_file_id);
   Reader(Store* store);
 
-  std::ifstream* File(io::file_id_t file_id);
+  std::ifstream* File(file_id_t file_id);
 
-  std::unordered_map<io::file_id_t, std::ifstream*> files_;
-  io::file_id_t cur_file_id_;
+  std::unordered_map<file_id_t, std::ifstream*> files_;
+  file_id_t cur_file_id_;
   Store* store_;
 
   friend class Store;

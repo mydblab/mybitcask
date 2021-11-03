@@ -7,7 +7,7 @@ namespace mybitcask {
 namespace store {
 struct FilenameInfo {
   std::string filename;
-  io::file_id_t file_id;
+  file_id_t file_id;
   FileType type;
 };
 
@@ -33,7 +33,7 @@ TEST(FilenameTest, Parse) {
       {"0.log", 0, FileType::kLogFile},
       {"0.hint", 0, FileType::kHintFile},
   };
-  io::file_id_t file_id = 0;
+  file_id_t file_id = 0;
   FileType type{};
 
   for (const auto& filenameInfo : cases) {

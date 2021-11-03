@@ -60,7 +60,7 @@ size_t Reader::Read(char* const dst, const size_t size) {
   return read_count;
 }
 
-void Reader::Seek(const io::Position& pos) {
+void Reader::Seek(const Position& pos) {
   auto file = File(pos.file_id);
   if (nullptr == file) {
     // error
@@ -71,7 +71,7 @@ void Reader::Seek(const io::Position& pos) {
   cur_file_id_ = pos.file_id;
 }
 
-Reader::Reader(Store* store, io::file_id_t cur_file_id)
+Reader::Reader(Store* store, file_id_t cur_file_id)
     : store_(store), cur_file_id_(cur_file_id), files_({}) {}
 
 Reader::Reader(Store* store) : store_(store), cur_file_id_(0), files_({}) {}
@@ -82,7 +82,7 @@ Reader::~Reader() {
   }
 }
 
-std::ifstream* Reader::File(io::file_id_t file_id) {
+std::ifstream* Reader::File(file_id_t file_id) {
   auto it = files_.find(file_id);
   if (it == files_.end()) {
     if (store_->cur_max_file_id_.load(std::memory_order_acquire) < file_id) {

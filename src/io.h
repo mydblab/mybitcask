@@ -9,14 +9,6 @@
 namespace mybitcask {
 namespace io {
 
-using file_id_t = uint32_t;
-
-// Position represents a position in db files.
-struct Position {
-  file_id_t file_id;
-  uint64_t offset_in_file;
-};
-
 // A reader abstraction for reading sequentially bytes
 class SequentialReader {
  public:
@@ -32,6 +24,12 @@ class SequentialReader {
   //
   // REQUIRES: External synchronization
   virtual absl::StatusOr<size_t> Read(size_t n, char* dst) noexcept = 0;
+
+  // Seek to offset `n`, in bytes, in this reader.
+  // If EOF is reached, skipping will stop at the EOF, and Skip will return OK.
+  //
+  // REQUIRES: External synchronization
+  virtual absl::StatusOr<size_t> Skip(uint64_t offset) noexcept = 0;
 };
 
 // A reader abstraction for randomly reading bytes.
