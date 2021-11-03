@@ -12,7 +12,7 @@ find_package(AbseilCpp REQUIRED)
 
 # mybitcask core library
 add_library(${PROJECT_NAME} src/log.cc src/store_filename.cc src/store.cc)
-target_link_libraries(${PROJECT_NAME} Crc32c::crc32c absl::statusor)
+target_link_libraries(${PROJECT_NAME} crc32c absl::statusor)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # google test
@@ -34,6 +34,4 @@ if(Gtest_FOUND)
   mybitcask_test(src/log_test.cc)
   mybitcask_test(src/store_test.cc)
   mybitcask_test(src/store_filename_test.cc)
-
-
 endif()
