@@ -7,10 +7,12 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# find_package(Crc32c REQUIRED)
+find_package(Crc32c REQUIRED)
+find_package(AbseilCpp REQUIRED)
 
 # mybitcask core library
-add_library(${PROJECT_NAME} src/log_codec.cc src/filename.cc)
+add_library(${PROJECT_NAME} src/log.cc src/filename.cc)
+target_link_libraries(${PROJECT_NAME} Crc32c::crc32c absl::statusor)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # google test
@@ -30,6 +32,6 @@ if(Gtest_FOUND)
   endfunction(mybitcask_test)
 
   mybitcask_test(src/filename_test.cc)
-  mybitcask_test(src/log_codec_test.cc)
+  mybitcask_test(src/log_test.cc)
 
 endif()
