@@ -1,5 +1,5 @@
 # minimum required CMAKE version
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project("mybitcask")
 
@@ -11,7 +11,7 @@ find_package(Crc32c REQUIRED)
 find_package(AbseilCpp REQUIRED)
 
 # mybitcask core library
-add_library(${PROJECT_NAME} src/log.cc src/filename.cc)
+add_library(${PROJECT_NAME} src/log.cc src/store_filename.cc src/store.cc)
 target_link_libraries(${PROJECT_NAME} Crc32c::crc32c absl::statusor)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -21,7 +21,7 @@ if(Gtest_FOUND)
   enable_testing()
 
   include(GoogleTest)
-  
+
   function(mybitcask_test test_file)
     get_filename_component(test_target_name "${test_file}" NAME_WE)
 
@@ -31,7 +31,9 @@ if(Gtest_FOUND)
     gtest_discover_tests(${test_target_name})
   endfunction(mybitcask_test)
 
-  mybitcask_test(src/filename_test.cc)
   mybitcask_test(src/log_test.cc)
+  mybitcask_test(src/store_test.cc)
+  mybitcask_test(src/store_filename_test.cc)
+
 
 endif()

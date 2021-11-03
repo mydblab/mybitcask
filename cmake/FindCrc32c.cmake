@@ -6,4 +6,8 @@ FetchContent_Declare(
     GIT_TAG 1.1.2
 )
 
+option(CRC32C_BUILD_TESTS  OFF)
+option(CRC32C_BUILD_BENCHMARKS  OFF)
+option(CRC32C_USE_GLOG  OFF)
+
 FetchContent_MakeAvailable(crc32c)
