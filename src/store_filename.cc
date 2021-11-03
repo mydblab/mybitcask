@@ -6,12 +6,12 @@ namespace mybitcask {
 namespace store {
 const char* const LOG_FILE_SUFFIX = "log";
 const char* const HINT_FILE_SUFFIX = "hint";
-const char* const FILE_NAME_FORMAT = "%llu.%s";
+const char* const FILE_NAME_FORMAT = "%u.%s";
 
 static std::string MakeFileName(io::file_id_t file_id, const char* suffix) {
   char buf[100];
   std::snprintf(buf, sizeof(buf), FILE_NAME_FORMAT,
-                static_cast<unsigned long long>(file_id), suffix);
+                static_cast<unsigned int>(file_id), suffix);
   return buf;
 }
 

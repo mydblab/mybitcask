@@ -1,5 +1,5 @@
 # minimum required CMAKE version
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project("mybitcask")
 
@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# find_package(Crc32c REQUIRED)
+find_package(Crc32c REQUIRED)
 
 # mybitcask core library
-add_library(${PROJECT_NAME} src/store_filename.cc)
+add_library(${PROJECT_NAME} src/store_filename.cc src/store.cc)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # google test
@@ -31,5 +31,6 @@ if(Gtest_FOUND)
 
   mybitcask_test(src/store_filename_test.cc)
   # mybitcask_test(src/log_codec_test.cc)
+  mybitcask_test(src/store_test.cc)
 
 endif()

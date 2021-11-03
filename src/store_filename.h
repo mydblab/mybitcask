@@ -7,7 +7,7 @@
 
 namespace mybitcask {
 namespace store {
-enum FileType { kLogFile, kHintFile };
+enum class FileType { kLogFile, kHintFile };
 
 // Return the name of the log file with the specified file_id
 std::string LogFileName(io::file_id_t file_id);
