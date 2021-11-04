@@ -1,4 +1,5 @@
 #include "log.h"
+#include "assert.h"
 #include "crc32c/crc32c.h"
 
 #include <cstring>
@@ -29,9 +30,6 @@ const size_t kCrc32Len = 4;
 const size_t kKeySzLen = 1;
 const size_t kValSzLen = 2;
 const size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
-
-LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader> src)
-    : src_(std::move(src)) {}
 
 // Header represents log entry header which contains CRC32C, key_size and
 // value_size
@@ -80,6 +78,10 @@ class Header {
   std::uint8_t* const data_;
 };
 
+explicit LogReader::LogReader(
+    std::unique_ptr<const io::RandomAccessReader>&& src)
+    : src_(std::move(src)) {}
+
 absl::StatusOr<std::optional<Entry>> LogReader::Read(
     std::uint64_t offset) noexcept {
   // read header
@@ -118,11 +120,16 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
   return entry;
 }
 
-LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter> dest)
+explicit LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
     : dest_(std::move(dest)) {}
 
 absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
-                               absl::Span<const std::uint8_t> value) {
+                               absl::Span<const std::uint8_t> value) noexcept {
+  assertm(key.size() <= 0xFF,
+          "key length must be less than or equal to 255 bytes");
+  assertm(value.size() < kTombstone,
+          "value length must be less than 65535 bytes");
+
   std::unique_ptr<uint8_t[]> buf(
       new uint8_t[kHeaderLen + key.size() + value.size()]);
   Header header(buf.get());
@@ -143,7 +150,8 @@ absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
   return absl::OkStatus();
 }
 
-absl::Status LogWriter::AppendTombstone(absl::Span<const std::uint8_t> key) {
+absl::Status LogWriter::AppendTombstone(
+    absl::Span<const std::uint8_t> key) noexcept {
   return Append(key, {});
 }
 

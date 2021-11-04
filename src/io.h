@@ -70,13 +70,16 @@ class SequentialWriter {
   // no bytes were written.
   //
   // Safe for concurrent use by multiple threads.
-  virtual absl::Status Append(absl::Span<uint8_t> src) noexcept = 0;
+  virtual absl::Status Append(absl::Span<std::uint8_t> src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
   //
   // Safe for concurrent use by multiple threads.
   virtual absl::Status Sync() noexcept = 0;
+
+  // Returns the current size of this writer.
+  virtual absl::StatusOr<std::size_t> Size() const noexcept = 0;
 };
 
 // Open a file as SequentialWriter
