@@ -47,11 +47,12 @@ class RandomAccessReader {
   //
   // Safe for concurrent use by multiple threads.
   virtual absl::StatusOr<size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept = 0;
+      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept = 0;
 };
 
 // A writer abstraction for writing sequentially bytes
 class SequentialWriter {
+ public:
   SequentialWriter(const SequentialWriter&) = delete;
   SequentialWriter& operator=(const SequentialWriter&) = delete;
 
