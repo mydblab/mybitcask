@@ -3,10 +3,8 @@
 
 #include "io.h"
 
-#include <atomic>
 #include <cstddef>
 #include <filesystem>
-#include <fstream>
 #include <unordered_map>
 
 namespace mybitcask {
@@ -25,52 +23,60 @@ const size_t kDefaultDeadBytesThreshold = 128 * 1024 * 1024;
 
 class Reader;
 
-class Store {
+class Store : public io::RandomAccessReader, public io::SequentialWriter {
  public:
-  void Append(const char* src, const size_t size);
+  absl::StatusOr<size_t> ReadAt(uint64_t offset, size_t n,
+                                uint8_t* dst) noexcept override;
 
-  // Opens a `Store` with the given path.
-  // This will create a new directory if the given one does not exist.
-  // static Store open(std::filesystem::path path);
+  absl::StatusOr<size_t> ReadAt(const Position& pos, size_t n,
+                                uint8_t* dst) noexcept;
+
+  absl::Status Append(size_t n, uint8_t* src) noexcept override;
+
+  absl::Status Sync() noexcept override;
 
   Store() = delete;
-  ~Store();
+  Store(file_id_t latest_file_id_, std::filesystem::path path,
+        std::function<std::string(file_id_t)> filename_fn,
+        size_t dead_bytes_threshold);
 
-  Reader GetReader();
+  ~Store() override;
 
  private:
-  std::ofstream* New_log_file();
+  // Get io::RandomAccessReader through the file ID,
+  // and return nullptr if the file does not exist
+  io::RandomAccessReader* reader(file_id_t file_id);
 
-  Store(std::filesystem::path path);
-  Store(std::filesystem::path path, size_t dead_bytes_threshold);
-
-  std::atomic_uint cur_max_file_id_;
-  const size_t dead_bytes_threshold_;
+  // Latest file id
+  file_id_t latest_file_id_;
+  // Database file path
   std::filesystem::path path_;
-  std::ofstream* writer_;
+  // Once the current writer exceeds dead_bytes_threshold_ A new file is created
+  const size_t dead_bytes_threshold_;
+  // Function to generate file name by file id
+  const std::function<std::string(file_id_t)> filename_fn_;
 
-  friend class Reader;
+  // Latest file writer
+  io::SequentialWriter* writer_;
+  // All readers
+  std::unordered_map<file_id_t, io::RandomAccessReader*> readers_;
 };
 
-class Reader {
+class PosixMmapRandomAccessReader : public io::RandomAccessReader {
  public:
-  size_t Read(char* const dst, const size_t size);
-  void Seek(const Position& pos);
+  PosixMmapRandomAccessReader() = delete;
+  ~PosixMmapRandomAccessReader() override;
 
-  Reader() = delete;
-  ~Reader();
+  static absl::StatusOr<PosixMmapRandomAccessReader*> Open(
+      std::string_view filename);
+
+  absl::StatusOr<size_t> ReadAt(uint64_t offset, size_t n,
+                                uint8_t* dst) noexcept override;
 
  private:
-  Reader(Store* store, file_id_t cur_file_id);
-  Reader(Store* store);
-
-  std::ifstream* File(file_id_t file_id);
-
-  std::unordered_map<file_id_t, std::ifstream*> files_;
-  file_id_t cur_file_id_;
-  Store* store_;
-
-  friend class Store;
+  PosixMmapRandomAccessReader(uint8_t* mmap_base, size_t length);
+  uint8_t* mmap_base_;
+  size_t length_;
 };
 
 }  // namespace store

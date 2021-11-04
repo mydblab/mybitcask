@@ -12,6 +12,7 @@ namespace io {
 // A reader abstraction for reading sequentially bytes
 class SequentialReader {
  public:
+  SequentialReader() = default;
   SequentialReader(const SequentialReader&) = delete;
   SequentialReader& operator=(const SequentialReader&) = delete;
 
@@ -23,17 +24,19 @@ class SequentialReader {
   // no bytes were read.
   //
   // REQUIRES: External synchronization
-  virtual absl::StatusOr<size_t> Read(size_t n, char* dst) noexcept = 0;
+  virtual absl::StatusOr<size_t> Read(size_t n, uint8_t* dst) noexcept = 0;
 
   // Seek to offset `n`, in bytes, in this reader.
   // If EOF is reached, skipping will stop at the EOF, and Skip will return OK.
   //
   // REQUIRES: External synchronization
-  virtual absl::StatusOr<size_t> Skip(uint64_t offset) noexcept = 0;
+  virtual absl::StatusOr<size_t> Skip(uint64_t n) noexcept = 0;
 };
 
 // A reader abstraction for randomly reading bytes.
 class RandomAccessReader {
+ public:
+  RandomAccessReader() = default;
   RandomAccessReader(const RandomAccessReader&) = delete;
   RandomAccessReader& operator=(const RandomAccessReader&) = delete;
 
@@ -45,29 +48,31 @@ class RandomAccessReader {
   //
   // Safe for concurrent use by multiple threads.
   virtual absl::StatusOr<size_t> ReadAt(uint64_t offset, size_t n,
-                                        char* dst) noexcept = 0;
+                                        uint8_t* dst) noexcept = 0;
 };
 
 // A writer abstraction for writing sequentially bytes
 class SequentialWriter {
+ public:
+  SequentialWriter() = default;
   SequentialWriter(const SequentialWriter&) = delete;
   SequentialWriter& operator=(const SequentialWriter&) = delete;
 
   virtual ~SequentialWriter() = 0;
 
-  // Write `n` bytes of buffer(`src`) into this SequentialWriter, returning how
-  // many bytes were written. If an error was encountered, a non-OK status will
-  // be returned. If non-OK status is returned then it must be guaranteed that
+  // Write `n` bytes of buffer(`src`) into this SequentialWriter.
+  // If an error was encountered, a non-OK status will be returned.
+  // If non-OK status is returned then it must be guaranteed that
   // no bytes were written.
   //
   // Safe for concurrent use by multiple threads.
-  virtual absl::StatusOr<size_t> Append(size_t n, char* src) noexcept = 0;
+  virtual absl::Status Append(size_t n, uint8_t* src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
   //
   // Safe for concurrent use by multiple threads.
-  virtual absl::StatusOr<void> Sync() noexcept = 0;
+  virtual absl::Status Sync() noexcept = 0;
 };
 
 }  // namespace io
