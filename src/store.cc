@@ -85,9 +85,7 @@ absl::StatusOr<PosixMmapRandomAccessReader*> PosixMmapRandomAccessReader::Open(
 }
 
 absl::StatusOr<size_t> PosixMmapRandomAccessReader::ReadAt(
-    uint64_t offset, size_t n, uint8_t* dst) noexcept {
-
-    }
+    uint64_t offset, size_t n, uint8_t* dst) noexcept {}
 
 PosixMmapRandomAccessReader::PosixMmapRandomAccessReader(uint8_t* mmap_base,
                                                          size_t length)
