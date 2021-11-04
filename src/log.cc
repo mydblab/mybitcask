@@ -6,7 +6,7 @@
 namespace mybitcask {
 namespace log {
 
-// Log entry format:
+// Format of log entry on disk
 //
 //          |<--------- CRC coverage ---------->|
 //              +---- size of ----+
@@ -19,7 +19,10 @@ namespace log {
 //                      |                   |
 //                      +----- size of -----+
 
-// When the val_sz field is kTombstone(0xFFFF), it means delete the key
+// Tombstone is a special mark that indicates that a record once occupied the
+// slot but does so no longer. When the `val_sz` value in the log entry is
+// kTombstone(0xFFFF), it means delete the record corresponding to the key. In
+// this case the `val` in this log entry is empty
 const uint16_t kTombstone = 0xFFFF;
 
 const size_t kCrc32Len = 4;
@@ -27,9 +30,11 @@ const size_t kKeySzLen = 1;
 const size_t kValSzLen = 2;
 const size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
 
-LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader> reader)
-    : reader_(std::move(reader)) {}
+LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader> src)
+    : src_(std::move(src)) {}
 
+// Header represents log entry header which contains CRC32C, key_size and
+// value_size
 class Header {
  public:
   Header(std::uint8_t* const data) : data_(data) {}
@@ -54,13 +59,15 @@ class Header {
 
   std::uint8_t* data() { return data_; }
 
-  bool check_crc(absl::Span<const std::uint8_t> kv_buf) const {
-    return crc32() == calc_actual_crc(kv_buf);
+  // Returns true if the crc is correct, false if it's incorrect
+  bool check_crc(absl::Span<const std::uint8_t> kv_data) const {
+    return crc32() == calc_actual_crc(kv_data);
   }
 
-  std::uint32_t calc_actual_crc(absl::Span<const std::uint8_t> kv_buf) const {
+  // Calculate crc32 from key_size, value_size and kv_buf
+  std::uint32_t calc_actual_crc(absl::Span<const std::uint8_t> kv_data) const {
     auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeySzLen + kValSzLen);
-    return crc32c::Extend(header_crc, kv_buf.data(), kv_buf.size());
+    return crc32c::Extend(header_crc, kv_data.data(), kv_data.size());
   }
 
  private:
@@ -80,7 +87,7 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
   Header header(header_data);
 
   auto status_read_len =
-      reader_->ReadAt(offset, absl::Span(header.data(), kHeaderLen));
+      src_->ReadAt(offset, absl::Span(header.data(), kHeaderLen));
   if (!status_read_len.ok()) {
     return status_read_len.status();
   }
@@ -93,7 +100,7 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
   // read key and value
   Entry entry(key_size, value_size);
   auto buf = absl::Span(entry.raw_ptr_, key_size + value_size);
-  status_read_len = reader_->ReadAt(offset + kHeaderLen, buf);
+  status_read_len = src_->ReadAt(offset + kHeaderLen, buf);
   if (!status_read_len.ok()) {
     return status_read_len.status();
   }
@@ -111,27 +118,33 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
   return entry;
 }
 
-LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter> writer)
-    : writer_(std::move(writer)) {}
-
-absl::Status LogWriter::AppendTombstone(absl::Span<const std::uint8_t> key) {
-  uint8_t* buf = new uint8_t[kHeaderLen + key.size()];
-  std::memcpy(&buf[kHeaderLen], key.data(), key.size());
-
-  Header header(buf);
-  header.set_key_size(key.size());
-  header.set_tombstone();
-  header.set_crc32(
-      header.calc_actual_crc(absl::Span(&buf[kHeaderLen], key.size())));
-  writer_->Append(absl::Span(buf, kHeaderLen + key.size()));
-
-  delete[] buf;
-  return absl::OkStatus();
-}
+LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter> dest)
+    : dest_(std::move(dest)) {}
 
 absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
                                absl::Span<const std::uint8_t> value) {
+  std::unique_ptr<uint8_t[]> buf(
+      new uint8_t[kHeaderLen + key.size() + value.size()]);
+  Header header(buf.get());
+  header.set_key_size(key.size());
+  std::memcpy(&buf[kHeaderLen], key.data(), key.size());
+  if (value.size() >= 0) {
+    header.set_value_size(value.size());
+    std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value.size());
+  } else {
+    header.set_tombstone();
+  }
+  header.set_crc32(
+      header.calc_actual_crc(absl::Span(&buf[kHeaderLen], key.size())));
+  auto status = dest_->Append(absl::Span(buf.get(), kHeaderLen + key.size()));
+  if (!status.ok()) {
+    return status;
+  }
   return absl::OkStatus();
+}
+
+absl::Status LogWriter::AppendTombstone(absl::Span<const std::uint8_t> key) {
+  return Append(key, {});
 }
 
 }  // namespace log
