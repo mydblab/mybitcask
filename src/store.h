@@ -3,10 +3,7 @@
 
 #include "io.h"
 
-#include <cstddef>
 #include <filesystem>
-#include <fstream>
-#include <memory>
 #include <unordered_map>
 
 namespace mybitcask {
@@ -20,16 +17,13 @@ struct Position {
   uint64_t offset_in_file;
 };
 
-// Failed to open file Error
-const std::string kErrOpenFailed = "failed open";
-
 class Store : public io::RandomAccessReader, public io::SequentialWriter {
  public:
   absl::StatusOr<std::size_t> ReadAt(
       uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override;
 
-  absl::StatusOr<std::size_t> ReadAt(const Position& pos,
-                                absl::Span<std::uint8_t> dst) const noexcept;
+  absl::StatusOr<std::size_t> ReadAt(
+      const Position& pos, absl::Span<std::uint8_t> dst) const noexcept;
 
   absl::Status Append(absl::Span<std::uint8_t> src) noexcept override;
 
@@ -45,7 +39,7 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
  private:
   // Get io::RandomAccessReader through the file ID,
   // and return nullptr if the file does not exist
-  io::RandomAccessReader* reader(file_id_t file_id);
+  const io::RandomAccessReader* reader(file_id_t file_id);
 
   // Latest file id
   file_id_t latest_file_id_;
@@ -60,39 +54,6 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   io::SequentialWriter* writer_;
   // All readers
   std::unordered_map<file_id_t, const io::RandomAccessReader*> readers_;
-};
-
-class MmapRandomAccessReader : public io::RandomAccessReader {
- public:
-  MmapRandomAccessReader() = delete;
-  ~MmapRandomAccessReader() override;
-
-  static absl::StatusOr<std::unique_ptr<MmapRandomAccessReader>> Open(
-      std::string_view filename);
-
-  absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override;
-
- private:
-  MmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length);
-  std::uint8_t* const mmap_base_;
-  std::size_t length_;
-};
-
-class FStreamSequentialWriter : public io::SequentialWriter {
- public:
-  absl::Status Append(absl::Span<std::uint8_t> src) noexcept override;
-  absl::Status Sync() noexcept override;
-
-  FStreamSequentialWriter() = delete;
-  ~FStreamSequentialWriter() override;
-
-  static absl::StatusOr<std::unique_ptr<FStreamSequentialWriter>> Open(
-      std::string_view filename);
-
- private:
-  FStreamSequentialWriter(std::ofstream&& file);
-  std::ofstream file_;
 };
 
 }  // namespace store

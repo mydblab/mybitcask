@@ -9,6 +9,9 @@
 namespace mybitcask {
 namespace io {
 
+// Failed to open file Error
+const std::string kErrOpenFailed = "failed open";
+
 // A reader abstraction for reading sequentially bytes
 class SequentialReader {
  public:
@@ -75,6 +78,17 @@ class SequentialWriter {
   // Safe for concurrent use by multiple threads.
   virtual absl::Status Sync() noexcept = 0;
 };
+
+// Open a file as SequentialWriter
+absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
+    std::string_view filename);
+
+// Open a file as RandomAccessReader
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+    std::string_view filename);
+
+// Get the size of the specified file
+absl::StatusOr<std::size_t> GetFileSize(std::string_view filename) noexcept;
 
 }  // namespace io
 }  // namespace mybitcask
