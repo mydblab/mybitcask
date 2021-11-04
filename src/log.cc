@@ -1,35 +1,99 @@
 #include "log.h"
 #include "crc32c/crc32c.h"
 
+#include <cstring>
+
 namespace mybitcask {
 namespace log {
-LogReader::LogReader(io::RandomAccessReader* reader) : reader_(reader) {}
 
-absl::StatusOr<std::optional<Entry>> LogReader::Read(uint64_t offset) noexcept {
+// Log entry format:
+//
+//          |<--------- CRC coverage ---------->|
+//              +---- size of ----+
+//              |                 |
+//              |                 v
+// +--------+---+--+--------+-- - - --+-- - - --+
+// | CRC32C |key_sz| val_sz |   key   |   val   |
+// +--------+------+----+---+-- - - --+-- - - --+
+//  (32bits) (8bits) (16bits)               ^
+//                      |                   |
+//                      +----- size of -----+
+
+// When the val_sz field is kTombstone(0xFFFF), it means delete the key
+const uint16_t kTombstone = 0xFFFF;
+
+const size_t kCrc32Len = 4;
+const size_t kKeySzLen = 1;
+const size_t kValSzLen = 2;
+const size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
+
+LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader> reader)
+    : reader_(std::move(reader)) {}
+
+class Header {
+ public:
+  Header(std::uint8_t* const data) : data_(data) {}
+
+  std::uint8_t key_size() const { return data_[kCrc32Len]; }
+  std::uint8_t value_size() const {
+    if (is_tombstone()) {
+      return 0;
+    }
+    return raw_value_size();
+  }
+  bool is_tombstone() const { return raw_value_size() == kTombstone; }
+
+  void set_crc32(std::uint32_t crc32) {
+    absl::little_endian::Store32(&data_[0], crc32);
+  }
+  void set_key_size(std::uint8_t key_size) { data_[kCrc32Len] = key_size; }
+  void set_value_size(std::uint16_t value_size) {
+    absl::little_endian::Store32(&data_[kCrc32Len + kKeySzLen], value_size);
+  }
+  void set_tombstone() { set_value_size(kTombstone); }
+
+  std::uint8_t* data() { return data_; }
+
+  bool check_crc(absl::Span<const std::uint8_t> kv_buf) const {
+    return crc32() == calc_actual_crc(kv_buf);
+  }
+
+  std::uint32_t calc_actual_crc(absl::Span<const std::uint8_t> kv_buf) const {
+    auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeySzLen + kValSzLen);
+    return crc32c::Extend(header_crc, kv_buf.data(), kv_buf.size());
+  }
+
+ private:
+  std::uint16_t raw_value_size() const {
+    return absl::little_endian::Load16(&data_[kCrc32Len + kKeySzLen]);
+  }
+
+  std::uint32_t crc32() const { return absl::little_endian::Load32(&data_[0]); }
+
+  std::uint8_t* const data_;
+};
+
+absl::StatusOr<std::optional<Entry>> LogReader::Read(
+    std::uint64_t offset) noexcept {
   // read header
-  uint8_t header[kHeaderLen]{};
+  uint8_t header_data[kHeaderLen]{};
+  Header header(header_data);
+
   auto status_read_len =
-      reader_->ReadAt(offset, absl::Span(header, kHeaderLen));
+      reader_->ReadAt(offset, absl::Span(header.data(), kHeaderLen));
   if (!status_read_len.ok()) {
     return status_read_len.status();
   }
   if (*status_read_len != kHeaderLen) {
     return absl::InternalError(kErrBadEntry);
   }
-
-  auto expected_crc32 = absl::little_endian::Load32(&header[0]);
-  const size_t key_size = header[4];
-  size_t value_size = absl::little_endian::Load16(&header[5]);
-  bool is_tombstone = false;
-  if (value_size == kTombstone) {
-    is_tombstone = true;
-    value_size = 0;
-  }
+  auto key_size = header.key_size();
+  auto value_size = header.key_size();
 
   // read key and value
-  auto inner_buf = new uint8_t[kHeaderLen + key_size + value_size];
-  auto buf = absl::Span(&inner_buf[kHeaderLen], key_size + value_size);
-  auto status_read_len = reader_->ReadAt(offset + kHeaderLen, buf);
+  Entry entry(key_size, value_size);
+  auto buf = absl::Span(entry.raw_ptr_, key_size + value_size);
+  status_read_len = reader_->ReadAt(offset + kHeaderLen, buf);
   if (!status_read_len.ok()) {
     return status_read_len.status();
   }
@@ -38,14 +102,37 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(uint64_t offset) noexcept {
   }
 
   // check crc
-  auto actual_crc32 = crc32c::Crc32c(inner_buf, kHeaderLen + buf.size());
-  if (expected_crc32 != actual_crc32) {
+  if (!header.check_crc(buf)) {
     return absl::InternalError(kErrBadEntry);
   }
-  if (is_tombstone) {
+  if (header.is_tombstone()) {
     return std::nullopt;
   }
-  return std::nullopt;
+  return entry;
 }
+
+LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter> writer)
+    : writer_(std::move(writer)) {}
+
+absl::Status LogWriter::AppendTombstone(absl::Span<const std::uint8_t> key) {
+  uint8_t* buf = new uint8_t[kHeaderLen + key.size()];
+  std::memcpy(&buf[kHeaderLen], key.data(), key.size());
+
+  Header header(buf);
+  header.set_key_size(key.size());
+  header.set_tombstone();
+  header.set_crc32(
+      header.calc_actual_crc(absl::Span(&buf[kHeaderLen], key.size())));
+  writer_->Append(absl::Span(buf, kHeaderLen + key.size()));
+
+  delete[] buf;
+  return absl::OkStatus();
+}
+
+absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
+                               absl::Span<const std::uint8_t> value) {
+  return absl::OkStatus();
+}
+
 }  // namespace log
 }  // namespace mybitcask
