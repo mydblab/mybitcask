@@ -5,6 +5,8 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
+#include <memory>
 #include <unordered_map>
 
 namespace mybitcask {
@@ -18,27 +20,25 @@ struct Position {
   uint64_t offset_in_file;
 };
 
-// default dead bytes threshold (128MB)
-const size_t kDefaultDeadBytesThreshold = 128 * 1024 * 1024;
-
-class Reader;
+// Failed to open file Error
+const std::string kErrOpenFailed = "failed open";
 
 class Store : public io::RandomAccessReader, public io::SequentialWriter {
  public:
-  absl::StatusOr<size_t> ReadAt(uint64_t offset, size_t n,
-                                uint8_t* dst) noexcept override;
+  absl::StatusOr<std::size_t> ReadAt(
+      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override;
 
-  absl::StatusOr<size_t> ReadAt(const Position& pos, size_t n,
-                                uint8_t* dst) noexcept;
+  absl::StatusOr<std::size_t> ReadAt(const Position& pos,
+                                absl::Span<std::uint8_t> dst) const noexcept;
 
-  absl::Status Append(size_t n, uint8_t* src) noexcept override;
+  absl::Status Append(absl::Span<std::uint8_t> src) noexcept override;
 
   absl::Status Sync() noexcept override;
 
   Store() = delete;
   Store(file_id_t latest_file_id_, std::filesystem::path path,
         std::function<std::string(file_id_t)> filename_fn,
-        size_t dead_bytes_threshold);
+        std::size_t dead_bytes_threshold);
 
   ~Store() override;
 
@@ -52,31 +52,47 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   // Database file path
   std::filesystem::path path_;
   // Once the current writer exceeds dead_bytes_threshold_ A new file is created
-  const size_t dead_bytes_threshold_;
+  const std::size_t dead_bytes_threshold_;
   // Function to generate file name by file id
   const std::function<std::string(file_id_t)> filename_fn_;
 
   // Latest file writer
   io::SequentialWriter* writer_;
   // All readers
-  std::unordered_map<file_id_t, io::RandomAccessReader*> readers_;
+  std::unordered_map<file_id_t, const io::RandomAccessReader*> readers_;
 };
 
-class PosixMmapRandomAccessReader : public io::RandomAccessReader {
+class MmapRandomAccessReader : public io::RandomAccessReader {
  public:
-  PosixMmapRandomAccessReader() = delete;
-  ~PosixMmapRandomAccessReader() override;
+  MmapRandomAccessReader() = delete;
+  ~MmapRandomAccessReader() override;
 
-  static absl::StatusOr<PosixMmapRandomAccessReader*> Open(
+  static absl::StatusOr<std::unique_ptr<MmapRandomAccessReader>> Open(
       std::string_view filename);
 
-  absl::StatusOr<size_t> ReadAt(uint64_t offset, size_t n,
-                                uint8_t* dst) noexcept override;
+  absl::StatusOr<std::size_t> ReadAt(
+      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override;
 
  private:
-  PosixMmapRandomAccessReader(uint8_t* mmap_base, size_t length);
-  uint8_t* mmap_base_;
-  size_t length_;
+  MmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length);
+  std::uint8_t* const mmap_base_;
+  std::size_t length_;
+};
+
+class FStreamSequentialWriter : public io::SequentialWriter {
+ public:
+  absl::Status Append(absl::Span<std::uint8_t> src) noexcept override;
+  absl::Status Sync() noexcept override;
+
+  FStreamSequentialWriter() = delete;
+  ~FStreamSequentialWriter() override;
+
+  static absl::StatusOr<std::unique_ptr<FStreamSequentialWriter>> Open(
+      std::string_view filename);
+
+ private:
+  FStreamSequentialWriter(std::ofstream&& file);
+  std::ofstream file_;
 };
 
 }  // namespace store

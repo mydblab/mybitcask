@@ -46,6 +46,6 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(uint64_t offset) noexcept {
     return std::nullopt;
   }
   return std::nullopt;
-
+}
 }  // namespace log
 }  // namespace mybitcask
