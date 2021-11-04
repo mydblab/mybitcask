@@ -5,7 +5,8 @@
 namespace mybitcask {
 namespace log {
 
-TEST(LogReaderTest, Read) {}
+TEST(LogReaderTest, Read) {
+}
 
 }  // namespace log
 }  // namespace mybitcask

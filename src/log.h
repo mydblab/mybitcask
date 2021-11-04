@@ -13,7 +13,7 @@
 namespace mybitcask {
 namespace log {
 
-// invalid log entry.
+// kErrBadEntry is an error. that indicates log entry is invalid.
 // Currently there are two situations in which this error will occur:
 // * The entry has an invalid CRC
 // * The entry has wrong length
@@ -23,22 +23,35 @@ class Entry;
 
 class LogReader {
  public:
-  LogReader(std::unique_ptr<const io::RandomAccessReader> reader);
+  LogReader(std::unique_ptr<const io::RandomAccessReader> src);
+
+  // Read a log entry at the specified `offset`. Returns ok status and log entry
+  // if read successfully. Else return non-ok status
   absl::StatusOr<std::optional<Entry>> Read(uint64_t offset) noexcept;
 
  private:
-  const std::unique_ptr<const io::RandomAccessReader> reader_;
+  const std::unique_ptr<const io::RandomAccessReader> src_;
 };
 
 class LogWriter {
  public:
-  LogWriter(std::unique_ptr<io::SequentialWriter> writer);
-  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key);
+  LogWriter(std::unique_ptr<io::SequentialWriter> dest);
+
+  // Add an log entry to the end of the underlying dest. Returns ok status if
+  // append successfully. Else return non-ok status
   absl::Status Append(absl::Span<const std::uint8_t> key,
                       absl::Span<const std::uint8_t> value);
 
+  // Add a tombstone log entry to the end of the underlying dest. Returns ok
+  // status if append successfully. Else return non-ok status
+  //
+  // A tombstone log entry is a special log entry that indicates that the record
+  // corresponding to the `key` once occupied the slot but does so no longer.
+  // In other words, delete the record corresponding to this key
+  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key);
+
  private:
-  std::unique_ptr<io::SequentialWriter> writer_;
+  std::unique_ptr<io::SequentialWriter> dest_;
 };
 
 class Entry {

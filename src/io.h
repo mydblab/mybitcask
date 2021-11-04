@@ -46,7 +46,7 @@ class RandomAccessReader {
 
   virtual ~RandomAccessReader() = 0;
 
-  // Read ``dst.size()` bytes from this RandomAccessReader starting at `offset`
+  // Read `dst.size()` bytes from this RandomAccessReader starting at `offset`
   // into the `dst` buffer, returning how many bytes were read. If an error was
   // encountered, a non-OK status will be returned.
   //
@@ -64,7 +64,7 @@ class SequentialWriter {
 
   virtual ~SequentialWriter() = 0;
 
-  // Write `n` bytes of buffer(`src`) into this SequentialWriter.
+  // Write `src.size()` bytes of buffer(`src`) into this SequentialWriter.
   // If an error was encountered, a non-OK status will be returned.
   // If non-OK status is returned then it must be guaranteed that
   // no bytes were written.
