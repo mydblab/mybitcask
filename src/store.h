@@ -29,7 +29,7 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
 
   absl::Status Sync() noexcept override;
 
-  // absl::StatusOr<std::size_t> Size() const noexcept override;
+  absl::StatusOr<std::uint64_t> Size() const noexcept override;
 
   Store() = delete;
   Store(file_id_t latest_file_id_, ghc::filesystem::path path,

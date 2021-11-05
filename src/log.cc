@@ -122,7 +122,7 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
 LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
     : dest_(std::move(dest)) {}
 
-absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
+absl::StatusOr<> LogWriter::Append(absl::Span<const std::uint8_t> key,
                                absl::Span<const std::uint8_t> value) noexcept {
   assertm(key.size() <= 0xFF,
           "key length must be less than or equal to 255 bytes");

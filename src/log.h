@@ -39,10 +39,12 @@ class LogWriter {
  public:
   explicit LogWriter(std::unique_ptr<io::SequentialWriter>&& dest);
 
-  // Add an log entry to the end of the underlying dest. Returns ok status if
-  // append successfully. Else return non-ok status
-  absl::Status Append(absl::Span<const std::uint8_t> key,
-                      absl::Span<const std::uint8_t> value) noexcept;
+  // Add an log entry to the end of the underlying dest. Returns ok status and
+  // the offset of the added entry if append successfully. Else return non-ok
+  // status
+  absl::StatusOr<std::uint64_t> Append(
+      absl::Span<const std::uint8_t> key,
+      absl::Span<const std::uint8_t> value) noexcept;
 
   // Add a tombstone log entry to the end of the underlying dest. Returns ok
   // status if append successfully. Else return non-ok status

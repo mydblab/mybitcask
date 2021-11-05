@@ -36,7 +36,7 @@ class SequentialReader {
   // If EOF is reached, skipping will stop at the EOF, and Skip will return OK.
   //
   // REQUIRES: External synchronization
-  virtual absl::StatusOr<size_t> Skip(std::uint64_t offset) noexcept = 0;
+  virtual absl::Status Skip(std::uint64_t offset) noexcept = 0;
 };
 
 // A reader abstraction for randomly reading bytes.
@@ -81,16 +81,16 @@ class SequentialWriter {
   virtual absl::Status Sync() noexcept = 0;
 
   // Returns the current size of this writer.
-  //  virtual absl::StatusOr<std::size_t> Size() const noexcept = 0;
+  virtual absl::StatusOr<std::uint64_t> Size() const noexcept = 0;
 };
 
 // Open a file as SequentialWriter
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    const ghc::filesystem::path& filename);
+    const ghc::filesystem::path& filename) noexcept;
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    const ghc::filesystem::path& filename);
+    const ghc::filesystem::path& filename) noexcept;
 
 // Get the size of the specified file
 absl::StatusOr<std::size_t> GetFileSize(
