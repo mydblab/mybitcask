@@ -17,6 +17,8 @@ class FStreamSequentialWriter : public SequentialWriter {
     return absl::OkStatus();
   }
 
+  absl::StatusOr<std::size_t> Size() const noexcept override { return 0; }
+
   FStreamSequentialWriter() = delete;
   ~FStreamSequentialWriter() override { file_.close(); }
 

@@ -18,8 +18,9 @@ TEST(IoTest, FStreamSequentialWriter) {
   auto writer = OpenSequentialWriter(*tmpfilename);
   ASSERT_TRUE(writer.ok());
   std::string_view testdata = "test data.";
-  auto append_status = (*writer)->Append(absl::Span(
-      reinterpret_cast<const std::uint8_t*>(testdata.data()), sizeof testdata));
+  auto append_status =
+      (*writer)->Append({reinterpret_cast<const std::uint8_t*>(testdata.data()),
+                         sizeof testdata});
   ASSERT_TRUE(append_status.ok());
   auto sync_status = (*writer)->Sync();
   ASSERT_TRUE(sync_status.ok());
