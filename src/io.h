@@ -78,6 +78,9 @@ class SequentialWriter {
   //
   // Safe for concurrent use by multiple threads.
   virtual absl::Status Sync() noexcept = 0;
+
+  // Returns the current size of this writer.
+  virtual absl::StatusOr<std::size_t> Size() const noexcept = 0;
 };
 
 // Open a file as SequentialWriter

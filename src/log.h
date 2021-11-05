@@ -23,7 +23,7 @@ class Entry;
 
 class LogReader {
  public:
-  LogReader(std::unique_ptr<const io::RandomAccessReader> src);
+  explicit LogReader(std::unique_ptr<const io::RandomAccessReader>&& src);
 
   // Read a log entry at the specified `offset`. Returns ok status and log entry
   // if read successfully. Else return non-ok status
@@ -35,12 +35,12 @@ class LogReader {
 
 class LogWriter {
  public:
-  LogWriter(std::unique_ptr<io::SequentialWriter> dest);
+  explicit LogWriter(std::unique_ptr<io::SequentialWriter>&& dest);
 
   // Add an log entry to the end of the underlying dest. Returns ok status if
   // append successfully. Else return non-ok status
   absl::Status Append(absl::Span<const std::uint8_t> key,
-                      absl::Span<const std::uint8_t> value);
+                      absl::Span<const std::uint8_t> value) noexcept;
 
   // Add a tombstone log entry to the end of the underlying dest. Returns ok
   // status if append successfully. Else return non-ok status
@@ -48,7 +48,7 @@ class LogWriter {
   // A tombstone log entry is a special log entry that indicates that the record
   // corresponding to the `key` once occupied the slot but does so no longer.
   // In other words, delete the record corresponding to this key
-  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key);
+  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key) noexcept;
 
  private:
   std::unique_ptr<io::SequentialWriter> dest_;

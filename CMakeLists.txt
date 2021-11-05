@@ -3,16 +3,17 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project("mybitcask")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 find_package(Crc32c REQUIRED)
 find_package(AbseilCpp REQUIRED)
+find_package(GhcFilesystem REQUIRED)
 
 # mybitcask core library
 add_library(${PROJECT_NAME} src/log.cc src/io.cc src/store_filename.cc src/store.cc)
-target_link_libraries(${PROJECT_NAME} crc32c absl::status absl::statusor)
+target_link_libraries(${PROJECT_NAME} crc32c absl::status absl::statusor ghc_filesystem)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 if (WIN32)
