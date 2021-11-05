@@ -9,7 +9,7 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   ~WindowsRandomAccessReader() override {}
 
   absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
+      std::uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
     return 0;
   }
 

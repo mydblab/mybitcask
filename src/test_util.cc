@@ -67,5 +67,9 @@ std::string GenerateRandomString(Engine& engine, std::size_t size) noexcept {
   return str;
 }
 
+absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept {
+  return {reinterpret_cast<std::uint8_t*>(const_cast<char*>(buf.data())), buf.size()};
+}
+
 }  // namespace test
 }  // namespace mybitcask

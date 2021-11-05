@@ -34,5 +34,8 @@ absl::StatusOr<ghc::filesystem::path> TempFilename(
 template <class Engine>
 std::string GenerateRandomString(Engine& engine, std::size_t size) noexcept;
 
+// Converting string_view to span<uint8_t>
+absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept;
+
 }  // namespace test
 }  // namespace mybitcask

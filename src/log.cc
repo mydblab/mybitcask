@@ -93,6 +93,10 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
   if (!read_len.ok()) {
     return read_len.status();
   }
+  if (*read_len == 0) {
+    // key does not exist
+    return absl::nullopt;
+  }
   if (*read_len != kHeaderLen) {
     return absl::InternalError(kErrBadEntry);
   }
@@ -101,8 +105,7 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
 
   // read key and value
   Entry entry(key_size, value_size);
-  absl::Span<std::uint8_t> buf = {
-      entry.raw_ptr_, static_cast<std::size_t>(key_size) + value_size};
+  absl::Span<std::uint8_t> buf = {entry.raw_ptr(), entry.raw_buf_size()};
   read_len = src_->ReadAt(offset + kHeaderLen, buf);
   if (!read_len.ok()) {
     return read_len.status();
@@ -122,7 +125,7 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
 }
 
 LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
-    : dest_(std::move(dest)), last_append_offset_(0) {}
+    : dest_(std::move(dest)), last_append_offset_(0), append_lock_() {}
 
 absl::Status LogWriter::Init() noexcept {
   auto size = dest_->Size();
@@ -140,8 +143,10 @@ absl::StatusOr<std::uint64_t> LogWriter::Append(
           "key length must be less than or equal to 255 bytes");
   assertm(value.size() < kTombstone,
           "value length must be less than 65535 bytes");
+
   auto buf_len = kHeaderLen + key.size() + value.size();
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
+
   Header header(buf.get());
   header.set_key_size(static_cast<std::uint8_t>(key.size()));
   std::memcpy(&buf[kHeaderLen], key.data(), key.size());
@@ -152,13 +157,15 @@ absl::StatusOr<std::uint64_t> LogWriter::Append(
     header.set_tombstone();
   }
   header.set_crc32(header.calc_actual_crc({&buf[kHeaderLen], key.size()}));
+
+  auto offset_to_be_appended = last_append_offset_;
+  const std::lock_guard<std::mutex> lock(append_lock_);
   auto status = dest_->Append({buf.get(), kHeaderLen + key.size()});
   if (!status.ok()) {
     return status;
   }
-  auto appended_entry_offset = last_append_offset_;
   last_append_offset_ += buf_len;
-  return appended_entry_offset;
+  return offset_to_be_appended;
 }
 
 absl::StatusOr<std::uint64_t> LogWriter::AppendTombstone(
