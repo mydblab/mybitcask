@@ -1,14 +1,13 @@
 #include "log.h"
+#include "gtest/gtest.h"
 #include "io.h"
 #include "test_util.h"
-
-#include <gtest/gtest.h>
 
 namespace mybitcask {
 namespace log {
 
 TEST(LogReaderTest, NormalRead) {
-  auto tempfile = test::MakeTempFile("mybitcask_test");
+  auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
   auto temp_src = io::OpenRandomAccessReader((*tempfile).Filename());
   EXPECT_TRUE(temp_src.ok());
