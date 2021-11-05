@@ -24,12 +24,12 @@ namespace log {
 // slot but does so no longer. When the `val_sz` value in the log entry is
 // kTombstone(0xFFFF), it means delete the record corresponding to the key. In
 // this case the `val` in this log entry is empty
-const uint16_t kTombstone = 0xFFFF;
+const std::uint16_t kTombstone = 0xFFFF;
 
-const size_t kCrc32Len = 4;
-const size_t kKeySzLen = 1;
-const size_t kValSzLen = 2;
-const size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
+const std::size_t kCrc32Len = 4;
+const std::size_t kKeySzLen = 1;
+const std::size_t kValSzLen = 2;
+const std::size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
 
 // Header represents log entry header which contains CRC32C, key_size and
 // value_size
@@ -38,7 +38,7 @@ class Header {
   Header(std::uint8_t* const data) : data_(data) {}
 
   std::uint8_t key_size() const { return data_[kCrc32Len]; }
-  std::uint8_t value_size() const {
+  std::uint16_t value_size() const {
     if (is_tombstone()) {
       return 0;
     }
@@ -78,18 +78,16 @@ class Header {
   std::uint8_t* const data_;
 };
 
-explicit LogReader::LogReader(
-    std::unique_ptr<const io::RandomAccessReader>&& src)
+LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader>&& src)
     : src_(std::move(src)) {}
 
-absl::StatusOr<std::optional<Entry>> LogReader::Read(
+absl::StatusOr<absl::optional<Entry>> LogReader::Read(
     std::uint64_t offset) noexcept {
   // read header
-  uint8_t header_data[kHeaderLen]{};
+  std::uint8_t header_data[kHeaderLen]{};
   Header header(header_data);
 
-  auto status_read_len =
-      src_->ReadAt(offset, absl::Span(header.data(), kHeaderLen));
+  auto status_read_len = src_->ReadAt(offset, {header.data(), kHeaderLen});
   if (!status_read_len.ok()) {
     return status_read_len.status();
   }
@@ -101,7 +99,8 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
 
   // read key and value
   Entry entry(key_size, value_size);
-  auto buf = absl::Span(entry.raw_ptr_, key_size + value_size);
+  absl::Span<std::uint8_t> buf = {entry.raw_ptr_,
+                             static_cast<std::size_t>(key_size) + value_size};
   status_read_len = src_->ReadAt(offset + kHeaderLen, buf);
   if (!status_read_len.ok()) {
     return status_read_len.status();
@@ -115,12 +114,12 @@ absl::StatusOr<std::optional<Entry>> LogReader::Read(
     return absl::InternalError(kErrBadEntry);
   }
   if (header.is_tombstone()) {
-    return std::nullopt;
+    return absl::nullopt;
   }
   return entry;
 }
 
-explicit LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
+LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
     : dest_(std::move(dest)) {}
 
 absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
@@ -130,20 +129,19 @@ absl::Status LogWriter::Append(absl::Span<const std::uint8_t> key,
   assertm(value.size() < kTombstone,
           "value length must be less than 65535 bytes");
 
-  std::unique_ptr<uint8_t[]> buf(
-      new uint8_t[kHeaderLen + key.size() + value.size()]);
+  std::unique_ptr<std::uint8_t[]> buf(
+      new std::uint8_t[kHeaderLen + key.size() + value.size()]);
   Header header(buf.get());
-  header.set_key_size(key.size());
+  header.set_key_size(static_cast<std::uint8_t>(key.size()));
   std::memcpy(&buf[kHeaderLen], key.data(), key.size());
   if (value.size() >= 0) {
-    header.set_value_size(value.size());
+    header.set_value_size(static_cast<std::uint8_t> (value.size()));
     std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value.size());
   } else {
     header.set_tombstone();
   }
-  header.set_crc32(
-      header.calc_actual_crc(absl::Span(&buf[kHeaderLen], key.size())));
-  auto status = dest_->Append(absl::Span(buf.get(), kHeaderLen + key.size()));
+  header.set_crc32(header.calc_actual_crc({&buf[kHeaderLen], key.size()}));
+  auto status = dest_->Append({buf.get(), kHeaderLen + key.size()});
   if (!status.ok()) {
     return status;
   }

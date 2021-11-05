@@ -12,8 +12,20 @@ find_package(AbseilCpp REQUIRED)
 find_package(GhcFilesystem REQUIRED)
 
 # mybitcask core library
-add_library(${PROJECT_NAME} src/log.cc src/io.cc src/store_filename.cc src/store.cc)
-target_link_libraries(${PROJECT_NAME} crc32c absl::status absl::statusor ghc_filesystem)
+add_library(${PROJECT_NAME}
+  src/log.cc
+  src/io.cc
+  src/store_filename.cc
+  src/store.cc
+)
+target_link_libraries(${PROJECT_NAME}
+  crc32c
+  absl::status
+  absl::statusor
+  absl::span
+  absl::optional
+  ghc_filesystem
+)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 if (WIN32)

@@ -10,7 +10,9 @@ absl::StatusOr<std::size_t> Store::ReadAt(
 }
 
 absl::StatusOr<std::size_t> Store::ReadAt(
-    const Position& pos, absl::Span<std::uint8_t> dst) const noexcept {}
+    const Position& pos, absl::Span<std::uint8_t> dst) const noexcept {
+  return 0;
+}
 
 absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
   // TODO: lock
@@ -24,7 +26,7 @@ absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
   return writer_->Append(src);
 }
 
-absl::Status Store::Sync() noexcept {}
+absl::Status Store::Sync() noexcept { return absl::OkStatus(); }
 
 Store::Store(file_id_t latest_file_id, ghc::filesystem::path path,
              std::function<std::string(file_id_t)> filename_fn,

@@ -1,12 +1,14 @@
 #ifndef MYBITCASK_SRC_LOG_H_
 #define MYBITCASK_SRC_LOG_H_
 
-#include "absl/status/statusor.h"
 #include "io.h"
+
+#include "absl/status/statusor.h"
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
 
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,7 +29,7 @@ class LogReader {
 
   // Read a log entry at the specified `offset`. Returns ok status and log entry
   // if read successfully. Else return non-ok status
-  absl::StatusOr<std::optional<Entry>> Read(uint64_t offset) noexcept;
+  absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) noexcept;
 
  private:
   const std::unique_ptr<const io::RandomAccessReader> src_;
@@ -63,12 +65,10 @@ class Entry {
 
   ~Entry() { delete[] raw_ptr_; }
 
-  absl::Span<const std::uint8_t> key() const {
-    return absl::Span(raw_ptr_, key_size_);
-  }
+  absl::Span<const std::uint8_t> key() const { return {raw_ptr_, key_size_}; }
 
   absl::Span<const std::uint8_t> value() const {
-    return absl::Span(raw_ptr_ + key_size_, value_size_);
+    return {raw_ptr_ + key_size_, value_size_};
   }
 
  private:
@@ -76,7 +76,7 @@ class Entry {
   const std::uint16_t value_size_;
   uint8_t* const raw_ptr_;
 
-  friend absl::StatusOr<std::optional<Entry>> LogReader::Read(
+  friend absl::StatusOr<absl::optional<Entry>> LogReader::Read(
       uint64_t offset) noexcept;
 };
 

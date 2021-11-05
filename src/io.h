@@ -2,6 +2,7 @@
 #define MYBITCASK_SRC_IO_H_
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "ghc/filesystem.hpp"
 
 #include <cstddef>
