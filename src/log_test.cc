@@ -16,10 +16,12 @@ TEST(LogReaderTest, NormalRead) {
   EXPECT_TRUE(temp_dest.ok());
 
   log::LogReader log_reader(*std::move(temp_src));
+  log_reader.Init();
   log::LogWriter log_writer(*std::move(temp_dest));
+  log_writer.Init();
 
-  log_writer.Append({"hello", 5}, {"world", 5});
-  log_reader.Read(0);
+  // log_writer.Append({"hello", 5}, {"world", 5});
+  // log_reader.Read(0);
 
   // log_reader.Read();
 }

@@ -71,13 +71,13 @@ class SequentialWriter {
   // returned. If non-OK status is returned then it must be guaranteed that no
   // bytes were written.
   //
-  // Safe for concurrent use by multiple threads.
+  // REQUIRES: External synchronization
   virtual absl::Status Append(absl::Span<const std::uint8_t> src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
   //
-  // Safe for concurrent use by multiple threads.
+  // REQUIRES: External synchronization
   virtual absl::Status Sync() noexcept = 0;
 
   // Returns the current size of this writer.

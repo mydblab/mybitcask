@@ -15,11 +15,11 @@ class WindowsRandomAccessReader : public RandomAccessReader {
 
  private:
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(const ghc::filesystem::path& filename);
+  OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;
 };
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    const ghc::filesystem::path& filename) {
+    const ghc::filesystem::path& filename) noexcept {
   return std::unique_ptr<RandomAccessReader>(new WindowsRandomAccessReader());
 }
 

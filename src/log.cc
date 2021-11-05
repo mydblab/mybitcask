@@ -81,8 +81,10 @@ class Header {
 LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader>&& src)
     : src_(std::move(src)) {}
 
+absl::Status LogReader::Init() noexcept { return absl::OkStatus(); }
+
 absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-    std::uint64_t offset) noexcept {
+    std::uint64_t offset) const noexcept {
   // read header
   std::uint8_t header_data[kHeaderLen]{};
   Header header(header_data);
@@ -99,8 +101,8 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
 
   // read key and value
   Entry entry(key_size, value_size);
-  absl::Span<std::uint8_t> buf = {entry.raw_ptr_,
-                             static_cast<std::size_t>(key_size) + value_size};
+  absl::Span<std::uint8_t> buf = {
+      entry.raw_ptr_, static_cast<std::size_t>(key_size) + value_size};
   read_len = src_->ReadAt(offset + kHeaderLen, buf);
   if (!read_len.ok()) {
     return read_len.status();
@@ -120,22 +122,31 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
 }
 
 LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
-    : dest_(std::move(dest)) {}
+    : dest_(std::move(dest)), last_append_offset_(0) {}
 
-absl::StatusOr<> LogWriter::Append(absl::Span<const std::uint8_t> key,
-                               absl::Span<const std::uint8_t> value) noexcept {
+absl::Status LogWriter::Init() noexcept {
+  auto size = dest_->Size();
+  if (!size.ok()) {
+    return size.status();
+  }
+  last_append_offset_ = *size;
+  return absl::OkStatus();
+}
+
+absl::StatusOr<std::uint64_t> LogWriter::Append(
+    absl::Span<const std::uint8_t> key,
+    absl::Span<const std::uint8_t> value) noexcept {
   assertm(key.size() <= 0xFF,
           "key length must be less than or equal to 255 bytes");
   assertm(value.size() < kTombstone,
           "value length must be less than 65535 bytes");
-
-  std::unique_ptr<std::uint8_t[]> buf(
-      new std::uint8_t[kHeaderLen + key.size() + value.size()]);
+  auto buf_len = kHeaderLen + key.size() + value.size();
+  std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
   Header header(buf.get());
   header.set_key_size(static_cast<std::uint8_t>(key.size()));
   std::memcpy(&buf[kHeaderLen], key.data(), key.size());
   if (value.size() >= 0) {
-    header.set_value_size(static_cast<std::uint8_t> (value.size()));
+    header.set_value_size(static_cast<std::uint8_t>(value.size()));
     std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value.size());
   } else {
     header.set_tombstone();
@@ -145,10 +156,12 @@ absl::StatusOr<> LogWriter::Append(absl::Span<const std::uint8_t> key,
   if (!status.ok()) {
     return status;
   }
-  return absl::OkStatus();
+  auto appended_entry_offset = last_append_offset_;
+  last_append_offset_ += buf_len;
+  return appended_entry_offset;
 }
 
-absl::Status LogWriter::AppendTombstone(
+absl::StatusOr<std::uint64_t> LogWriter::AppendTombstone(
     absl::Span<const std::uint8_t> key) noexcept {
   return Append(key, {});
 }

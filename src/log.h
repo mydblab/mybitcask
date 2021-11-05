@@ -27,9 +27,13 @@ class LogReader {
  public:
   explicit LogReader(std::unique_ptr<const io::RandomAccessReader>&& src);
 
+  // Initializes this LogReader. it must be called bfore reading log entry.
+  // Returns ok status if init successfully. Else return non-ok status
+  absl::Status Init() noexcept;
+
   // Read a log entry at the specified `offset`. Returns ok status and log entry
   // if read successfully. Else return non-ok status
-  absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) noexcept;
+  absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) const noexcept;
 
  private:
   const std::unique_ptr<const io::RandomAccessReader> src_;
@@ -39,6 +43,10 @@ class LogWriter {
  public:
   explicit LogWriter(std::unique_ptr<io::SequentialWriter>&& dest);
 
+  // Initializes this LogReader. it must be called bfore reading log entry.
+  // Returns ok status if init successfully. Else return non-ok status
+  absl::Status Init() noexcept;
+
   // Add an log entry to the end of the underlying dest. Returns ok status and
   // the offset of the added entry if append successfully. Else return non-ok
   // status
@@ -47,15 +55,18 @@ class LogWriter {
       absl::Span<const std::uint8_t> value) noexcept;
 
   // Add a tombstone log entry to the end of the underlying dest. Returns ok
-  // status if append successfully. Else return non-ok status
+  // status and the offset of the added entry if append successfully. Else
+  // return non-ok status
   //
   // A tombstone log entry is a special log entry that indicates that the record
   // corresponding to the `key` once occupied the slot but does so no longer.
   // In other words, delete the record corresponding to this key
-  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key) noexcept;
+  absl::StatusOr<std::uint64_t> AppendTombstone(
+      absl::Span<const std::uint8_t> key) noexcept;
 
  private:
   std::unique_ptr<io::SequentialWriter> dest_;
+  std::uint64_t last_append_offset_;
 };
 
 class Entry {
@@ -79,7 +90,7 @@ class Entry {
   uint8_t* const raw_ptr_;
 
   friend absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-      uint64_t offset) noexcept;
+      uint64_t offset) const noexcept;
 };
 
 }  // namespace log
