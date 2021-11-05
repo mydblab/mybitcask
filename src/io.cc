@@ -24,7 +24,7 @@ class FStreamSequentialWriter : public SequentialWriter {
 
  private:
   FStreamSequentialWriter(std::ofstream&& file)
-      : file_(std::move(file)) {}
+      : file_(std::forward<std::ofstream>(file)) {}
   std::ofstream file_;
 
   friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(

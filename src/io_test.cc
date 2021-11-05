@@ -12,10 +12,10 @@ namespace mybitcask {
 namespace io {
 
 TEST(IoTest, FStreamSequentialWriter) {
-  auto tmpfilename = test::TempFilename("mybitcask_test_", ".tmp");
-  ASSERT_TRUE(tmpfilename.ok());
+  auto tempfile = test::MakeTempFile("mybitcask_test_", ".tmp");
+  ASSERT_TRUE(tempfile.ok());
 
-  auto writer = OpenSequentialWriter(*tmpfilename);
+  auto writer = OpenSequentialWriter(tempfile->Filename());
   ASSERT_TRUE(writer.ok());
   std::string_view testdata = "test data.";
   auto append_status =
@@ -25,10 +25,6 @@ TEST(IoTest, FStreamSequentialWriter) {
   auto sync_status = (*writer)->Sync();
   ASSERT_TRUE(sync_status.ok());
   (*writer).release();
-
-  std::error_code ec;
-  ghc::filesystem::remove(*tmpfilename, ec);
-  ASSERT_TRUE(ec);
 }
 
 }  // namespace io

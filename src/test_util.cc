@@ -5,6 +5,27 @@
 namespace mybitcask {
 namespace test {
 
+const ghc::filesystem::path& TempFile::Filename() const { return filename_; }
+
+TempFile::TempFile(ghc::filesystem::path&& filename)
+    : filename_(std::forward<ghc::filesystem::path>(filename)) {
+  std::ofstream f(filename_);
+  f.close();
+}
+
+TempFile::~TempFile() { ghc::filesystem::remove(filename_); }
+
+absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix = "",
+                                    std::string&& suffix = "",
+                                    std::size_t size = 12) noexcept {
+  auto temp_filename = TempFilename(std::forward<std::string>(prefix),
+                                    std::forward<std::string>(suffix), size);
+  if (!temp_filename.ok()) {
+    return absl::Status(temp_filename.status());
+  }
+  return TempFile(std::move(temp_filename.value()));
+}
+
 absl::StatusOr<ghc::filesystem::path> TempFilename(const std::string&& prefix,
                                                    const std::string&& suffix,
                                                    std::size_t size) noexcept {
