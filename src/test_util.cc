@@ -15,21 +15,20 @@ TempFile::TempFile(ghc::filesystem::path&& filename)
 
 TempFile::~TempFile() { ghc::filesystem::remove(filename_); }
 
-absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix = "",
-                                      std::string&& suffix = "",
-                                      std::size_t size = 12) noexcept {
-  auto temp_filename =
-      TempFilename(std::forward<std::string>(prefix),
-                   std::forward<std::string>(suffix), name_length);
+absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
+                                    std::string&& suffix,
+                                    std::size_t name_length) noexcept {
+  auto temp_filename = TempFilename(std::forward<std::string>(prefix),
+                                    std::forward<std::string>(suffix), name_length);
   if (!temp_filename.ok()) {
     return absl::Status(temp_filename.status());
   }
   return TempFile(std::move(temp_filename.value()));
 }
 
-absl::StatusOr<ghc::filesystem::path> TempFilename(
-    const std::string&& prefix, const std::string&& suffix,
-    std::size_t name_length) noexcept {
+absl::StatusOr<ghc::filesystem::path> TempFilename(std::string&& prefix,
+                                                   std::string&& suffix,
+                                                   std::size_t name_length) noexcept {
   std::error_code ec;
   auto tmpdir = ghc::filesystem::temp_directory_path(ec).parent_path();
   if (ec) {

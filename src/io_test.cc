@@ -1,5 +1,3 @@
-
-
 #include "io.h"
 #include "ghc/filesystem.hpp"
 #include "test_util.h"

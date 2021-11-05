@@ -52,7 +52,7 @@ absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
       ::mmap(/*addr=*/nullptr, *status_file_size, PROT_READ, MAP_SHARED, fd, 0);
 
   ::close(fd);
-  return std::unique_ptr<MmapRandomAccessReader>(new MmapRandomAccessReader(
+  return std::unique_ptr<RandomAccessReader>(new MmapRandomAccessReader(
       reinterpret_cast<std::uint8_t*>(mmap_base_), *status_file_size));
 }
 
