@@ -25,7 +25,7 @@ TEST(IoTest, FStreamSequentialWriter) {
   std::ifstream tempfile_stream(tempfile->Filename());
   std::stringstream read_data;
   read_data << tempfile_stream.rdbuf();
-  EXPECT_STREQ(read_data.str(), test_data);
+  EXPECT_STREQ(read_data.str().c_str(), test_data);
 }
 
 }  // namespace io
