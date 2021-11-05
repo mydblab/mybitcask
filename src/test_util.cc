@@ -8,7 +8,7 @@ namespace test {
 const ghc::filesystem::path& TempFile::Filename() const { return filename_; }
 
 TempFile::TempFile(ghc::filesystem::path&& filename)
-    : filename_(std::forward<ghc::filesystem::path>(filename)) {
+    : filename_(std::move(filename)) {
   std::ofstream f(filename_);
   f.close();
 }
@@ -16,8 +16,8 @@ TempFile::TempFile(ghc::filesystem::path&& filename)
 TempFile::~TempFile() { ghc::filesystem::remove(filename_); }
 
 absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
-                                    std::string&& suffix,
-                                    std::size_t size) noexcept {
+                                      std::string&& suffix,
+                                      std::size_t size) noexcept {
   auto temp_filename = TempFilename(std::forward<std::string>(prefix),
                                     std::forward<std::string>(suffix), size);
   if (!temp_filename.ok()) {

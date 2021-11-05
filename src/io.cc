@@ -23,8 +23,7 @@ class FStreamSequentialWriter : public SequentialWriter {
   // absl::StatusOr<std::size_t> Size() const noexcept override { return 0; }
 
  private:
-  FStreamSequentialWriter(std::ofstream&& file)
-      : file_(std::forward<std::ofstream>(file)) {}
+  FStreamSequentialWriter(std::ofstream&& file) : file_(std::move(file)) {}
   std::ofstream file_;
 
   friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
