@@ -1,9 +1,9 @@
 #ifndef MYBITCASK_SRC_STORE_H_
 #define MYBITCASK_SRC_STORE_H_
 
+#include "ghc/filesystem.hpp"
 #include "io.h"
 
-#include <filesystem>
 #include <unordered_map>
 
 namespace mybitcask {
@@ -30,7 +30,7 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   absl::Status Sync() noexcept override;
 
   Store() = delete;
-  Store(file_id_t latest_file_id_, std::filesystem::path path,
+  Store(file_id_t latest_file_id_, ghc::filesystem::path path,
         std::function<std::string(file_id_t)> filename_fn,
         std::size_t dead_bytes_threshold);
 
@@ -44,7 +44,7 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   // Latest file id
   file_id_t latest_file_id_;
   // Database file path
-  std::filesystem::path path_;
+  ghc::filesystem::path path_;
   // Once the current writer exceeds dead_bytes_threshold_ A new file is created
   const std::size_t dead_bytes_threshold_;
   // Function to generate file name by file id

@@ -5,23 +5,23 @@
 namespace mybitcask {
 namespace test {
 
-absl::StatusOr<std::filesystem::path> TempFilename(std::string&& prefix,
+absl::StatusOr<ghc::filesystem::path> TempFilename(std::string&& prefix,
                                                    std::string&& suffix,
                                                    std::size_t size) {
   std::error_code ec;
-  auto tmpdir = std::filesystem::temp_directory_path(ec).parent_path();
+  auto tmpdir = ghc::filesystem::temp_directory_path(ec).parent_path();
   if (ec) {
     return absl::InternalError(ec.message());
   }
 
   std::default_random_engine e(std::random_device{}());
-  std::filesystem::path filename{};
+  ghc::filesystem::path filename{};
   while (true) {
     filename =
         tmpdir /
         (prefix + GenerateRandomString<std::default_random_engine>(e, size) +
          suffix);
-    if (!std::filesystem::exists(filename)) {
+    if (!ghc::filesystem::exists(filename)) {
       break;
     }
   }

@@ -2,10 +2,10 @@
 #define MYBITCASK_SRC_IO_H_
 
 #include "absl/status/statusor.h"
+#include "ghc/filesystem.hpp"
 
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
 
 namespace mybitcask {
 namespace io {
@@ -85,15 +85,15 @@ class SequentialWriter {
 
 // Open a file as SequentialWriter
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    std::filesystem::path filename);
+    ghc::filesystem::path filename);
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    std::filesystem::path filename);
+    ghc::filesystem::path filename);
 
 // Get the size of the specified file
 absl::StatusOr<std::size_t> GetFileSize(
-    std::filesystem::path filename) noexcept;
+    ghc::filesystem::path filename) noexcept;
 
 }  // namespace io
 }  // namespace mybitcask

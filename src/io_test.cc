@@ -1,11 +1,11 @@
 
 
 #include "io.h"
+#include "ghc/filesystem.hpp"
 #include "test_util.h"
 
 #include <gtest/gtest.h>
 #include <cstdio>
-#include <filesystem>
 #include <iostream>
 
 namespace mybitcask {
@@ -26,7 +26,7 @@ TEST(IoTest, FStreamSequentialWriter) {
   (*writer).release();
 
   std::error_code ec;
-  std::filesystem::remove(*tmpfilename, ec);
+  ghc::filesystem::remove(*tmpfilename, ec);
   ASSERT_TRUE(ec);
 }
 
