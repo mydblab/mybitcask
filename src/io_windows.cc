@@ -5,7 +5,7 @@ namespace io {
 
 class WindowsRandomAccessReader : public RandomAccessReader {
  public:
-  WindowsRandomAccessReader() = delete;
+  WindowsRandomAccessReader() = default;
   ~WindowsRandomAccessReader() override {}
 
   absl::StatusOr<std::size_t> ReadAt(
@@ -14,15 +14,13 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   }
 
  private:
-  WindowsRandomAccessReader() {}
-
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(ghc::filesystem::path filename);
+  OpenRandomAccessReader(const ghc::filesystem::path& filename);
 };
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    ghc::filesystem::path filename) {
-  return nullptr;
+    const ghc::filesystem::path& filename) {
+  return std::unique_ptr<RandomAccessReader>(new WindowsRandomAccessReader());
 }
 
 }  // namespace io

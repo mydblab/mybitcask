@@ -37,7 +37,7 @@ class MmapRandomAccessReader : public RandomAccessReader {
 };
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    ghc::filesystem::path filename) {
+    const ghc::filesystem::path& filename) {
   int fd = open(filename.generic_string().data(), O_RDWR | O_CREAT, 0644);
   if (fd < 0) {
     return absl::InternalError(kErrOpenFailed);

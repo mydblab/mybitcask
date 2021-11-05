@@ -28,7 +28,7 @@ absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
 
 absl::Status Store::Sync() noexcept { return absl::OkStatus(); }
 
-absl::StatusOr<std::size_t> Store::Size() const noexcept { return 0; }
+// absl::StatusOr<std::size_t> Store::Size() const noexcept { return 0; }
 
 Store::Store(file_id_t latest_file_id, ghc::filesystem::path path,
              std::function<std::string(file_id_t)> filename_fn,

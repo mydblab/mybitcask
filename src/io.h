@@ -21,7 +21,7 @@ class SequentialReader {
   SequentialReader(const SequentialReader&) = delete;
   SequentialReader& operator=(const SequentialReader&) = delete;
 
-  virtual ~SequentialReader() = 0;
+  virtual ~SequentialReader() = default;
 
   // Read `dst.size()` bytes from this SequentialReader into the `dst` buffer,
   // returning how many bytes were read. If an error was encountered, a non-OK
@@ -46,7 +46,7 @@ class RandomAccessReader {
   RandomAccessReader(const RandomAccessReader&) = delete;
   RandomAccessReader& operator=(const RandomAccessReader&) = delete;
 
-  virtual ~RandomAccessReader() = 0;
+  virtual ~RandomAccessReader() = default;
 
   // Read `dst.size()` bytes from this RandomAccessReader starting at `offset`
   // into the `dst` buffer, returning how many bytes were read. If an error was
@@ -64,12 +64,12 @@ class SequentialWriter {
   SequentialWriter(const SequentialWriter&) = delete;
   SequentialWriter& operator=(const SequentialWriter&) = delete;
 
-  virtual ~SequentialWriter() = 0;
+  virtual ~SequentialWriter() = default;
 
-  // Write `src.size()` bytes of buffer(`src`) into this SequentialWriter.
-  // If an error was encountered, a non-OK status will be returned.
-  // If non-OK status is returned then it must be guaranteed that
-  // no bytes were written.
+  // Write `src.size()` bytes of buffer(`src`) into end of this
+  // SequentialWriter. If an error was encountered, a non-OK status will be
+  // returned. If non-OK status is returned then it must be guaranteed that no
+  // bytes were written.
   //
   // Safe for concurrent use by multiple threads.
   virtual absl::Status Append(absl::Span<const std::uint8_t> src) noexcept = 0;
@@ -81,20 +81,20 @@ class SequentialWriter {
   virtual absl::Status Sync() noexcept = 0;
 
   // Returns the current size of this writer.
-  virtual absl::StatusOr<std::size_t> Size() const noexcept = 0;
+  //  virtual absl::StatusOr<std::size_t> Size() const noexcept = 0;
 };
 
 // Open a file as SequentialWriter
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    ghc::filesystem::path filename);
+    const ghc::filesystem::path& filename);
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    ghc::filesystem::path filename);
+    const ghc::filesystem::path& filename);
 
 // Get the size of the specified file
 absl::StatusOr<std::size_t> GetFileSize(
-    ghc::filesystem::path filename) noexcept;
+    const ghc::filesystem::path& filename) noexcept;
 
 }  // namespace io
 }  // namespace mybitcask

@@ -5,8 +5,8 @@
 namespace mybitcask {
 namespace test {
 
-absl::StatusOr<ghc::filesystem::path> TempFilename(std::string&& prefix,
-                                                   std::string&& suffix,
+absl::StatusOr<ghc::filesystem::path> TempFilename(const std::string&& prefix,
+                                                   const std::string&& suffix,
                                                    std::size_t size) {
   std::error_code ec;
   auto tmpdir = ghc::filesystem::temp_directory_path(ec).parent_path();

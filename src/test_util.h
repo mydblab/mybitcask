@@ -7,9 +7,9 @@ namespace mybitcask {
 namespace test {
 
 // returns a unique temp filename
-absl::StatusOr<ghc::filesystem::path> TempFilename(std::string&& prefix = "",
-                                                   std::string&& suffix = "",
-                                                   std::size_t size = 12);
+absl::StatusOr<ghc::filesystem::path> TempFilename(
+    const std::string&& prefix = "", const std::string&& suffix = "",
+    std::size_t size = 12);
 
 // Generates a random string of the specified number of size
 template <class Engine>

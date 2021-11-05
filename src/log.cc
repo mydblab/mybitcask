@@ -87,11 +87,11 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
   std::uint8_t header_data[kHeaderLen]{};
   Header header(header_data);
 
-  auto status_read_len = src_->ReadAt(offset, {header.data(), kHeaderLen});
-  if (!status_read_len.ok()) {
-    return status_read_len.status();
+  auto read_len = src_->ReadAt(offset, {header.data(), kHeaderLen});
+  if (!read_len.ok()) {
+    return read_len.status();
   }
-  if (*status_read_len != kHeaderLen) {
+  if (*read_len != kHeaderLen) {
     return absl::InternalError(kErrBadEntry);
   }
   auto key_size = header.key_size();
@@ -101,11 +101,11 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
   Entry entry(key_size, value_size);
   absl::Span<std::uint8_t> buf = {entry.raw_ptr_,
                              static_cast<std::size_t>(key_size) + value_size};
-  status_read_len = src_->ReadAt(offset + kHeaderLen, buf);
-  if (!status_read_len.ok()) {
-    return status_read_len.status();
+  read_len = src_->ReadAt(offset + kHeaderLen, buf);
+  if (!read_len.ok()) {
+    return read_len.status();
   }
-  if (*status_read_len != buf.size()) {
+  if (*read_len != buf.size()) {
     return absl::InternalError(kErrBadEntry);
   }
 
