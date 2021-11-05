@@ -18,7 +18,7 @@ TEST(IoTest, FStreamSequentialWriter) {
   std::string_view testdata = "test data.";
   auto append_status =
       (*writer)->Append({reinterpret_cast<const std::uint8_t*>(testdata.data()),
-                         sizeof testdata});
+                         testdata.size()});
   ASSERT_TRUE(append_status.ok());
   auto sync_status = (*writer)->Sync();
   ASSERT_TRUE(sync_status.ok());
