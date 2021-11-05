@@ -57,8 +57,4 @@ if(Gtest_FOUND)
   mybitcask_test(src/store_test.cc)
   mybitcask_test(src/store_filename_test.cc)
 
-  if(NOT WIN32)
-    mybitcask_test(src/io_posix_test.cc)
-  endif()
-
 endif()

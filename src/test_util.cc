@@ -13,7 +13,22 @@ TempFile::TempFile(ghc::filesystem::path&& filename)
   f.close();
 }
 
-TempFile::~TempFile() { ghc::filesystem::remove(filename_); }
+TempFile::TempFile(TempFile&& other) noexcept
+    : filename_(std::move(other.filename_)) {}
+
+TempFile& TempFile::operator =
+    (TempFile && other) noexcept {
+  if (filename_ != other.filename_) {
+    filename_ = std::move(other.filename_);
+  }
+  return *this;
+}
+
+TempFile::~TempFile(){
+  if (!filename_.empty()) {
+    ghc::filesystem::remove(filename_);
+  }
+}
 
 absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
                                       std::string&& suffix,

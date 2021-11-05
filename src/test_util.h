@@ -13,6 +13,13 @@ namespace test {
 class TempFile {
  public:
   TempFile(ghc::filesystem::path&& filename);
+  
+  TempFile(TempFile&& other) noexcept;
+  TempFile& operator=(TempFile&&) noexcept;
+
+  TempFile(const TempFile&) = delete;
+  TempFile& operator=(const TempFile&) = delete;
+
   ~TempFile();
 
   const ghc::filesystem::path& Filename() const;
