@@ -59,6 +59,6 @@ if(Gtest_FOUND)
 
   if(NOT WIN32)
     mybitcask_test(src/io_posix_test.cc)
-  endif (WIN32)
+  endif()
 
 endif()
