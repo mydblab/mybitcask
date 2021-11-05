@@ -7,7 +7,7 @@ namespace test {
 
 absl::StatusOr<ghc::filesystem::path> TempFilename(const std::string&& prefix,
                                                    const std::string&& suffix,
-                                                   std::size_t size) {
+                                                   std::size_t size) noexcept {
   std::error_code ec;
   auto tmpdir = ghc::filesystem::temp_directory_path(ec).parent_path();
   if (ec) {
@@ -29,7 +29,7 @@ absl::StatusOr<ghc::filesystem::path> TempFilename(const std::string&& prefix,
 }
 
 template <class Engine>
-std::string GenerateRandomString(Engine& engine, std::size_t size) {
+std::string GenerateRandomString(Engine& engine, std::size_t size) noexcept {
   std::uniform_int_distribution<short> dist(0, 35);
   std::string str;
   str.reserve(size);
