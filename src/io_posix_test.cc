@@ -7,7 +7,7 @@
 
 namespace mybitcask {
 namespace io {
-TEST(IoTest, MmapRandomAccessReader) {
+TEST(IoTest, PosixMmapRandomAccessReader) {
   auto tempfile = test::MakeTempFile("mybitcask_test_", ".tmp");
   ASSERT_TRUE(tempfile.ok());
 

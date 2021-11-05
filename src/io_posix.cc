@@ -8,10 +8,10 @@
 namespace mybitcask {
 namespace io {
 
-class MmapRandomAccessReader : public RandomAccessReader {
+class PosixMmapRandomAccessReader : public RandomAccessReader {
  public:
-  MmapRandomAccessReader() = delete;
-  ~MmapRandomAccessReader() override {
+  PosixMmapRandomAccessReader() = delete;
+  ~PosixMmapRandomAccessReader() override {
     munmap(static_cast<void*>(mmap_base_), length_);
   }
 
@@ -27,7 +27,7 @@ class MmapRandomAccessReader : public RandomAccessReader {
   }
 
  private:
-  MmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
+  PosixMmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
       : mmap_base_(mmap_base), length_(length) {}
   std::uint8_t* const mmap_base_;
   std::size_t length_;
@@ -52,7 +52,7 @@ absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
       ::mmap(/*addr=*/nullptr, *status_file_size, PROT_READ, MAP_SHARED, fd, 0);
 
   ::close(fd);
-  return std::unique_ptr<RandomAccessReader>(new MmapRandomAccessReader(
+  return std::unique_ptr<RandomAccessReader>(new PosixMmapRandomAccessReader(
       reinterpret_cast<std::uint8_t*>(mmap_base_), *status_file_size));
 }
 
