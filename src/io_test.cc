@@ -13,8 +13,6 @@ TEST(IoTest, FStreamSequentialWriter) {
   auto tempfile = test::MakeTempFile("mybitcask_test_", ".tmp");
   ASSERT_TRUE(tempfile.ok());
 
-  std::cout << tempfile->Filename() << std::endl;
-
   auto writer = OpenSequentialWriter(tempfile->Filename());
   ASSERT_TRUE(writer.ok());
   std::string_view testdata = "test data.";

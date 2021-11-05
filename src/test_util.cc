@@ -13,7 +13,7 @@ TempFile::TempFile(ghc::filesystem::path&& filename)
   f.close();
 }
 
-TempFile::~TempFile() { }
+TempFile::~TempFile() { ghc::filesystem::remove(filename_); }
 
 absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
                                     std::string&& suffix,
