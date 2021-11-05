@@ -33,7 +33,7 @@ class FStreamSequentialWriter : public SequentialWriter {
 
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
     const ghc::filesystem::path& filename) {
-  std::ofstream file(filename, std::fstream::out);
+  std::ofstream file(filename, std::fstream::out | std::fstream::app);
   if (!file.is_open()) {
     return absl::InternalError(kErrOpenFailed);
   }
@@ -42,7 +42,7 @@ absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
 }
 
 absl::StatusOr<std::size_t> GetFileSize(
-    ghc::filesystem::path filename) noexcept {
+    const ghc::filesystem::path& filename) noexcept {
   std::error_code ec;
   auto size = ghc::filesystem::file_size(filename, ec);
   if (ec) {
