@@ -1,14 +1,48 @@
 #include "test_util.h"
 
-#include <filesystem>
 #include <random>
 
 namespace mybitcask {
 namespace test {
 
-std::string TempFilename(std::string_view prefix = "") {
-  // auto tmpdir = std::filesystem::temp_directory_path();
-  // std::default_random_engine e(std::random_device());
+absl::StatusOr<std::filesystem::path> TempFilename(std::string&& prefix,
+                                                   std::string&& suffix,
+                                                   std::size_t size) {
+  std::error_code ec;
+  auto tmpdir = std::filesystem::temp_directory_path(ec).parent_path();
+  if (ec) {
+    return absl::InternalError(ec.message());
+  }
+
+  std::default_random_engine e(std::random_device{}());
+  std::filesystem::path filename{};
+  while (true) {
+    filename =
+        tmpdir /
+        (prefix + GenerateRandomString<std::default_random_engine>(e, size) +
+         suffix);
+    if (!std::filesystem::exists(filename)) {
+      break;
+    }
+  }
+  return filename;
+}
+
+template <class Engine>
+std::string GenerateRandomString(Engine& engine, std::size_t size) {
+  std::uniform_int_distribution<short> dist(0, 35);
+  std::string str;
+  str.reserve(size);
+
+  for (size_t i = 0; i < size; ++i) {
+    short val = dist(engine);
+    if (val < 26) {
+      str.push_back('a' + char(val));
+    } else {
+      str.push_back('0' + char(val - 26));
+    }
+  }
+  return str;
 }
 
 }  // namespace test

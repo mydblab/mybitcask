@@ -12,7 +12,7 @@ absl::StatusOr<std::size_t> Store::ReadAt(
 absl::StatusOr<std::size_t> Store::ReadAt(
     const Position& pos, absl::Span<std::uint8_t> dst) const noexcept {}
 
-absl::Status Store::Append(absl::Span<uint8_t> src) noexcept {
+absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
   // TODO: lock
   auto file_size =
       std::filesystem::file_size(path_.append(filename_fn_(latest_file_id_)));

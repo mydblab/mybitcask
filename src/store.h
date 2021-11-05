@@ -25,7 +25,7 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   absl::StatusOr<std::size_t> ReadAt(
       const Position& pos, absl::Span<std::uint8_t> dst) const noexcept;
 
-  absl::Status Append(absl::Span<std::uint8_t> src) noexcept override;
+  absl::Status Append(absl::Span<const std::uint8_t> src) noexcept override;
 
   absl::Status Sync() noexcept override;
 

@@ -7,10 +7,15 @@ namespace io {
 
 class FStreamSequentialWriter : public SequentialWriter {
  public:
-  absl::Status Append(absl::Span<std::uint8_t> src) noexcept override {
-    file_.write(reinterpret_cast<char*>(src.data()), src.size());
+  absl::Status Append(absl::Span<const std::uint8_t> src) noexcept override {
+    file_.write(reinterpret_cast<const char*>(src.data()), src.size());
+    return absl::OkStatus();
   }
-  absl::Status Sync() noexcept override { file_.flush(); }
+
+  absl::Status Sync() noexcept override {
+    file_.flush();
+    return absl::OkStatus();
+  }
 
   FStreamSequentialWriter() = delete;
   ~FStreamSequentialWriter() override { file_.close(); }
@@ -21,11 +26,11 @@ class FStreamSequentialWriter : public SequentialWriter {
   std::ofstream file_;
 
   friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-      std::string_view filename);
+      std::filesystem::path filename);
 };
 
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    std::string_view filename) {
+    std::filesystem::path filename) {
   std::ofstream file(filename, std::fstream::out);
   if (!file.is_open()) {
     return absl::InternalError(kErrOpenFailed);
@@ -34,7 +39,8 @@ absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
       new FStreamSequentialWriter(std::move(file)));
 }
 
-absl::StatusOr<std::size_t> GetFileSize(std::string_view filename) noexcept {
+absl::StatusOr<std::size_t> GetFileSize(
+    std::filesystem::path filename) noexcept {
   std::error_code ec;
   auto size = std::filesystem::file_size(filename, ec);
   if (ec) {

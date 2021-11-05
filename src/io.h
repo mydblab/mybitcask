@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 
 namespace mybitcask {
 namespace io {
@@ -70,7 +71,7 @@ class SequentialWriter {
   // no bytes were written.
   //
   // Safe for concurrent use by multiple threads.
-  virtual absl::Status Append(absl::Span<uint8_t> src) noexcept = 0;
+  virtual absl::Status Append(absl::Span<const std::uint8_t> src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
@@ -81,14 +82,15 @@ class SequentialWriter {
 
 // Open a file as SequentialWriter
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    std::string_view filename);
+    std::filesystem::path filename);
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    std::string_view filename);
+    std::filesystem::path filename);
 
 // Get the size of the specified file
-absl::StatusOr<std::size_t> GetFileSize(std::string_view filename) noexcept;
+absl::StatusOr<std::size_t> GetFileSize(
+    std::filesystem::path filename) noexcept;
 
 }  // namespace io
 }  // namespace mybitcask

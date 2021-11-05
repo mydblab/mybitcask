@@ -1,6 +1,7 @@
 
 
 #include "io.h"
+#include "test_util.h"
 
 #include <gtest/gtest.h>
 #include <cstdio>
@@ -11,17 +12,22 @@ namespace mybitcask {
 namespace io {
 
 TEST(IoTest, FStreamSequentialWriter) {
-  std::cout << std::tmpfile() << std::endl;
+  auto tmpfilename = test::TempFilename("mybitcask_test_", ".tmp");
+  ASSERT_TRUE(tmpfilename.ok());
 
-  // std::string tmpfilename = std::tmpnam();
-  // auto writer = OpenSequentialWriter(tmpfilename);
-  // ASSERT_TRUE(writer.ok());
-  // char* testdata = "test data.";
-  // (*writer)->Append(
-  //     absl::Span(reinterpret_cast<std::uint8_t*>(testdata), sizeof
-  //     testdata));
-  // (*writer)->Sync();
-  // (*writer).release();
+  auto writer = OpenSequentialWriter(*tmpfilename);
+  ASSERT_TRUE(writer.ok());
+  std::string_view testdata = "test data.";
+  auto append_status = (*writer)->Append(absl::Span(
+      reinterpret_cast<const std::uint8_t*>(testdata.data()), sizeof testdata));
+  ASSERT_TRUE(append_status.ok());
+  auto sync_status = (*writer)->Sync();
+  ASSERT_TRUE(sync_status.ok());
+  (*writer).release();
+
+  std::error_code ec;
+  std::filesystem::remove(*tmpfilename, ec);
+  ASSERT_TRUE(ec);
 }
 
 }  // namespace io

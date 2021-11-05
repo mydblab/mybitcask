@@ -33,12 +33,12 @@ class MmapRandomAccessReader : public RandomAccessReader {
   std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(std::string_view filename);
+  OpenRandomAccessReader(std::filesystem::path filename);
 };
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
-    std::string_view filename) {
-  int fd = open(filename.data(), O_RDWR | O_CREAT, 0644);
+    std::filesystem::path filename) {
+  int fd = open(filename.generic_string().data(), O_RDWR | O_CREAT, 0644);
   if (fd < 0) {
     return absl::InternalError(kErrOpenFailed);
   }
