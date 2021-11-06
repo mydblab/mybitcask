@@ -39,7 +39,7 @@ class LogReader {
   absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) const noexcept;
 
  private:
-  const std::unique_ptr<const io::RandomAccessReader> src_;
+  std::unique_ptr<const io::RandomAccessReader> src_;
 };
 
 class LogWriter {
