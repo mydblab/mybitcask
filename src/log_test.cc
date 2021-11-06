@@ -8,7 +8,7 @@ namespace log {
 
 absl::StatusOr<std::unique_ptr<log::LogReader>> create_log_reader(
     const ghc::filesystem::path& filename) {
-  auto src = io::OpenRandomAccessReader(filename);
+  auto src = io::OpenRandomAccessFileReader(filename);
   if (!src.ok()) {
     return src.status();
   }
@@ -21,7 +21,7 @@ absl::StatusOr<std::unique_ptr<log::LogReader>> create_log_reader(
 
 absl::StatusOr<std::unique_ptr<log::LogWriter>> create_log_writer(
     const ghc::filesystem::path& filename) {
-  auto dest = io::OpenSequentialWriter(filename);
+  auto dest = io::OpenSequentialFileWriter(filename);
   if (!dest.ok()) {
     return dest.status();
   }

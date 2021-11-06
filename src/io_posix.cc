@@ -33,10 +33,10 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
   const std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;
+  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     const ghc::filesystem::path& filename) noexcept {
   int fd = ::open(filename.generic_string().data(), O_RDWR | O_CREAT, 0644);
   if (fd < 0) {

@@ -50,10 +50,10 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   const HANDLE handle_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;
+  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     const ghc::filesystem::path& filename) noexcept {
   DWORD desired_access = GENERIC_READ;
   DWORD share_mode = FILE_SHARE_READ;

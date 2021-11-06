@@ -16,7 +16,7 @@ TEST(IoTest, SequentialWriter) {
 
   {
     auto filename = tempfile->filename();
-    auto writer = OpenSequentialWriter(std::move(filename));
+    auto writer = OpenSequentialFileWriter(std::move(filename));
     ASSERT_TRUE(writer.ok());
     auto file_size = (*writer)->Size();
     ASSERT_TRUE(file_size.ok());
@@ -53,7 +53,7 @@ TEST(IoTest, RandomAccessReader) {
   tempfile_stream << test_data;
   tempfile_stream.close();
 
-  auto reader = OpenRandomAccessReader(tempfile->filename());
+  auto reader = OpenRandomAccessFileReader(tempfile->filename());
   ASSERT_TRUE(reader.ok());
 
   char* read_data = new char[test_data.size() + 1];

@@ -85,11 +85,11 @@ class SequentialWriter {
 };
 
 // Open a file as SequentialWriter
-absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
+absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
     ghc::filesystem::path&& filename) noexcept;
 
 // Open a file as RandomAccessReader
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     const ghc::filesystem::path& filename) noexcept;
 
 // Get the size of the specified file
