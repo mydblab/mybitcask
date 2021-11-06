@@ -86,7 +86,7 @@ class SequentialWriter {
 
 // Open a file as SequentialWriter
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
-    const ghc::filesystem::path& filename) noexcept;
+    ghc::filesystem::path&& filename) noexcept;
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(

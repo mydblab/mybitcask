@@ -9,9 +9,9 @@ namespace log {
 TEST(LogReaderTest, NormalRead) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto temp_src = io::OpenRandomAccessReader((*tempfile).Filename());
+  auto temp_src = io::OpenRandomAccessReader(tempfile->filename());
   ASSERT_TRUE(temp_src.ok());
-  auto temp_dest = io::OpenSequentialWriter((*tempfile).Filename());
+  auto temp_dest = io::OpenSequentialWriter(tempfile->filename());
   ASSERT_TRUE(temp_dest.ok());
 
   log::LogReader log_reader(*std::move(temp_src));

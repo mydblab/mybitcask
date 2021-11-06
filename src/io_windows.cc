@@ -25,7 +25,7 @@ std::string GetWindowsErrorMessage(DWORD error_code) {
 
 class WindowsRandomAccessReader : public RandomAccessReader {
  public:
-  WindowsRandomAccessReader(const HANDLE&& handle)
+  WindowsRandomAccessReader(HANDLE&& handle)
       : handle_(std::move(handle)){};
   ~WindowsRandomAccessReader() override { ::CloseHandle(handle_); }
 
