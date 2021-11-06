@@ -36,10 +36,10 @@ absl::StatusOr<std::unique_ptr<log::LogWriter>> create_log_writer(
 TEST(LogReaderTest, NormalRead) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->Filename());
+  auto log_reader = create_log_reader(tempfile->filename());
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
-  auto log_writer = create_log_writer(tempfile->Filename());
+  auto log_writer = create_log_writer(tempfile->filename());
   ASSERT_TRUE(log_writer.ok())
       << "Field to create log writer. error: " << log_writer.status();
 
@@ -73,7 +73,7 @@ TEST(LogReaderTest, Tombstone) {}
 TEST(LogReaderTest, ReadEmptyFile) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->Filename());
+  auto log_reader = create_log_reader(tempfile->filename());
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
 

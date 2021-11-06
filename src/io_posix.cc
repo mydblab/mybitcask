@@ -29,8 +29,8 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
  private:
   PosixMmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
       : mmap_base_(mmap_base), length_(length) {}
-  std::uint8_t* const mmap_base_;
-  std::size_t length_;
+  const std::uint8_t* const mmap_base_;
+  const std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
   OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;

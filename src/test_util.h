@@ -22,7 +22,7 @@ class TempFile {
 
   ~TempFile();
 
-  const ghc::filesystem::path& Filename() const;
+  const ghc::filesystem::path& filename() const;
 
  private:
   ghc::filesystem::path filename_;

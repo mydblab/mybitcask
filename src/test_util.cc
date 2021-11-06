@@ -5,7 +5,7 @@
 namespace mybitcask {
 namespace test {
 
-const ghc::filesystem::path& TempFile::Filename() const { return filename_; }
+const ghc::filesystem::path& TempFile::filename() const { return filename_; }
 
 TempFile::TempFile(ghc::filesystem::path&& filename)
     : filename_(std::move(filename)) {
