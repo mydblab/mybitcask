@@ -29,7 +29,7 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
  private:
   PosixMmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
       : mmap_base_(mmap_base), length_(length) {}
-  const std::uint8_t* const mmap_base_;
+  std::uint8_t* const mmap_base_;
   const std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
