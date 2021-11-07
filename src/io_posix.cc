@@ -16,7 +16,7 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
   }
 
   absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
+      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     if (offset >= length_ - 1) {
       return absl::OutOfRangeError("offset is too large");
     }

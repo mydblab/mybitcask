@@ -30,7 +30,7 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   ~WindowsRandomAccessReader() override { ::CloseHandle(handle_); }
 
   absl::StatusOr<std::size_t> ReadAt(
-      std::uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
+      std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     DWORD actual_size = 0;
     OVERLAPPED overlapped = {0};
 

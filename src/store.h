@@ -1,6 +1,7 @@
 #ifndef MYBITCASK_SRC_STORE_H_
 #define MYBITCASK_SRC_STORE_H_
 
+#include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
 #include "io.h"
 
@@ -20,10 +21,10 @@ struct Position {
 class Store : public io::RandomAccessReader, public io::SequentialWriter {
  public:
   absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override;
+      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override;
 
-  absl::StatusOr<std::size_t> ReadAt(
-      const Position& pos, absl::Span<std::uint8_t> dst) const noexcept;
+  absl::StatusOr<std::size_t> ReadAt(const Position& pos,
+                                     absl::Span<std::uint8_t> dst) noexcept;
 
   absl::Status Append(absl::Span<const std::uint8_t> src) noexcept override;
 
@@ -36,15 +37,17 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
         std::function<std::string(file_id_t)> filename_fn,
         std::size_t dead_bytes_threshold);
 
-  ~Store() override;
+  ~Store() = default;
 
  private:
   // Get io::RandomAccessReader through the file ID,
   // and return nullptr if the file does not exist
-  const io::RandomAccessReader* reader(file_id_t file_id);
+  absl::StatusOr<io::RandomAccessReader*> reader(file_id_t file_id);
 
   // Latest file id
   file_id_t latest_file_id_;
+  absl::Mutex latest_file_id_lock_;
+
   // Database file path
   ghc::filesystem::path path_;
   // Once the current writer exceeds dead_bytes_threshold_ A new file is created
@@ -53,9 +56,10 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   const std::function<std::string(file_id_t)> filename_fn_;
 
   // Latest file writer
-  io::SequentialWriter* writer_;
+  std::unique_ptr<SequentialWriter> writer_;
   // All readers
-  std::unordered_map<file_id_t, const io::RandomAccessReader*> readers_;
+  std::unordered_map<file_id_t, std::unique_ptr<RandomAccessReader>> readers_;
+  absl::Mutex readers_lock_;
 };
 
 }  // namespace store
