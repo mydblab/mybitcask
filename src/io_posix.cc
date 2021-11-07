@@ -42,18 +42,18 @@ absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
   if (fd < 0) {
     return absl::InternalError(kErrOpenFailed);
   }
-  auto status_file_size = GetFileSize(filename);
+  auto file_size = GetFileSize(filename);
 
-  if (!status_file_size.ok()) {
-    return absl::Status(status_file_size.status());
+  if (!file_size.ok()) {
+    return absl::Status(file_size.status());
   }
 
   void* mmap_base_ =
-      ::mmap(/*addr=*/nullptr, *status_file_size, PROT_READ, MAP_SHARED, fd, 0);
+      ::mmap(/*addr=*/nullptr, *file_size, PROT_READ, MAP_SHARED, fd, 0);
 
   ::close(fd);
   return std::unique_ptr<RandomAccessReader>(new PosixMmapRandomAccessReader(
-      reinterpret_cast<std::uint8_t*>(mmap_base_), *status_file_size));
+      reinterpret_cast<std::uint8_t*>(mmap_base_), *file_size));
 }
 
 }  // namespace io
