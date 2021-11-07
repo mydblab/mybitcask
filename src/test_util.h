@@ -13,7 +13,7 @@ namespace test {
 class TempFile {
  public:
   TempFile(ghc::filesystem::path&& filename);
-  
+
   TempFile(TempFile&& other) noexcept;
   TempFile& operator=(TempFile&&) noexcept;
 
@@ -37,9 +37,17 @@ absl::StatusOr<ghc::filesystem::path> TempFilename(
     std::string&& prefix = "", std::string&& suffix = "",
     std::size_t name_length = 12) noexcept;
 
-// Generates a random string of the specified number of size
+// Generates a random string of the specified length
+std::string GenerateRandomString(std::size_t length) noexcept;
 template <class Engine>
-std::string GenerateRandomString(Engine& engine, std::size_t size) noexcept;
+std::string GenerateRandomString(Engine& engine, std::size_t length) noexcept;
+
+// Generate a random of the specified length range
+std::string GenerateRandomString(std::size_t min_len,
+                                 std::size_t max_len) noexcept;
+template <class Engine>
+std::string GenerateRandomString(Engine& engine, std::size_t min_len,
+                                 std::size_t max_len) noexcept;
 
 // Converting string_view to span<uint8_t>
 absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept;

@@ -56,7 +56,7 @@ class WindowsRandomAccessReader : public RandomAccessReader {
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
     const ghc::filesystem::path& filename) noexcept {
   DWORD desired_access = GENERIC_READ;
-  DWORD share_mode = FILE_SHARE_READ;
+  DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;
   HANDLE handle = ::CreateFileA(
       filename.string().c_str(), desired_access, share_mode,
       /*lpSecurityAttributes=*/nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY,

@@ -21,6 +21,8 @@ namespace log {
 // * The entry has an invalid CRC
 // * The entry has wrong length
 const std::string kErrBadEntry = "bad log entry";
+const std::string kErrBadKeyLength = "key length must be between (0, 255]";
+const std::string kErrBadValueLength = "value length must be between (0, 65535)";
 
 class Entry;
 
@@ -72,6 +74,10 @@ class LogWriter {
       absl::Span<const std::uint8_t> key) noexcept;
 
  private:
+  absl::StatusOr<std::uint64_t> AppendInner(
+      absl::Span<const std::uint8_t> key,
+      absl::Span<const std::uint8_t> value) noexcept;
+
   std::unique_ptr<io::SequentialWriter> dest_;
   std::uint64_t last_append_offset_;
   std::mutex append_lock_;
