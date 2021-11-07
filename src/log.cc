@@ -79,13 +79,13 @@ class Header {
   std::uint8_t* const data_;
 };
 
-LogReader::LogReader(std::unique_ptr<const io::RandomAccessReader>&& src)
+LogReader::LogReader(std::unique_ptr<io::RandomAccessReader>&& src)
     : src_(std::move(src)) {}
 
 absl::Status LogReader::Init() noexcept { return absl::OkStatus(); }
 
 absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-    std::uint64_t offset) const noexcept {
+    std::uint64_t offset) noexcept {
   // read header
   std::uint8_t header_data[kHeaderLen]{};
   Header header(header_data);

@@ -32,6 +32,7 @@ target_link_libraries(${PROJECT_NAME}
   absl::status
   absl::statusor
   absl::span
+  absl::synchronization
   absl::optional
   absl::endian
   ghc_filesystem

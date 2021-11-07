@@ -32,11 +32,11 @@ class FStreamSequentialWriter : public SequentialWriter {
   std::ofstream file_;
   const ghc::filesystem::path filename_;
 
-  friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
+  friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
       ghc::filesystem::path&& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialWriter(
+absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
     ghc::filesystem::path&& filename) noexcept {
   std::ofstream file(filename, std::fstream::out | std::fstream::app);
   if (!file.is_open()) {

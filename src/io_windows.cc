@@ -30,7 +30,7 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   ~WindowsRandomAccessReader() override { ::CloseHandle(handle_); }
 
   absl::StatusOr<std::size_t> ReadAt(
-      std::uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
+      std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     DWORD actual_size = 0;
     OVERLAPPED overlapped = {0};
 
@@ -50,10 +50,10 @@ class WindowsRandomAccessReader : public RandomAccessReader {
   const HANDLE handle_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;
+  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     const ghc::filesystem::path& filename) noexcept {
   DWORD desired_access = GENERIC_READ;
   DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;

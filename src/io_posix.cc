@@ -16,7 +16,7 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
   }
 
   absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) const noexcept override {
+      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     if (offset >= length_ - 1) {
       return absl::OutOfRangeError("offset is too large");
     }
@@ -29,14 +29,14 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
  private:
   PosixMmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
       : mmap_base_(mmap_base), length_(length) {}
-  const std::uint8_t* const mmap_base_;
+  std::uint8_t* const mmap_base_;
   const std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessReader(const ghc::filesystem::path& filename) noexcept;
+  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessReader(
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     const ghc::filesystem::path& filename) noexcept {
   int fd = ::open(filename.generic_string().data(), O_RDWR | O_CREAT, 0644);
   if (fd < 0) {

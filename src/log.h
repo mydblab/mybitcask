@@ -28,7 +28,7 @@ class Entry;
 
 class LogReader {
  public:
-  explicit LogReader(std::unique_ptr<const io::RandomAccessReader>&& src);
+  explicit LogReader(std::unique_ptr<io::RandomAccessReader>&& src);
 
   // Initializes this LogReader. it must be called bfore reading log entry.
   // Returns ok status if init successfully. Else return non-ok status
@@ -38,10 +38,10 @@ class LogReader {
   // if read successfully. Else return non-ok status
   //
   // Safe for concurrent use by multiple threads.
-  absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) const noexcept;
+  absl::StatusOr<absl::optional<Entry>> Read(uint64_t offset) noexcept;
 
  private:
-  std::unique_ptr<const io::RandomAccessReader> src_;
+  std::unique_ptr<io::RandomAccessReader> src_;
 };
 
 class LogWriter {
@@ -108,7 +108,7 @@ class Entry {
   std::unique_ptr<std::uint8_t[]> ptr_;
 
   friend absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-      std::uint64_t offset) const noexcept;
+      std::uint64_t offset) noexcept;
 };
 
 }  // namespace log
