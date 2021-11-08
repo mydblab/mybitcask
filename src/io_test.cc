@@ -43,7 +43,7 @@ TEST(IoTest, SequentialWriter) {
   EXPECT_EQ(read_data.str(), test_data);
 }
 
-TEST(IoTest, RandomAccessReader) {
+TEST(IoTest, RandomAccessFileReader) {
   auto tempfile = test::MakeTempFile("mybitcask_test_", ".tmp");
   ASSERT_TRUE(tempfile.ok());
 
@@ -53,11 +53,11 @@ TEST(IoTest, RandomAccessReader) {
   tempfile_stream << test_data;
   tempfile_stream.close();
 
-  auto reader = OpenRandomAccessFileReader(tempfile->filename());
+  auto filename = tempfile->filename();
+  auto reader = OpenRandomAccessFileReader(std::move(filename));
   ASSERT_TRUE(reader.ok());
 
   char* read_data = new char[test_data.size() + 1];
-
   auto actual_size = (*reader)->ReadAt(
       0, {reinterpret_cast<std::uint8_t*>(read_data), test_data.size()});
   ASSERT_TRUE(actual_size.ok());

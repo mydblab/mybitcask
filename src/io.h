@@ -90,7 +90,12 @@ absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
 
 // Open a file as RandomAccessReader
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
-    const ghc::filesystem::path& filename) noexcept;
+    ghc::filesystem::path&& filename) noexcept;
+
+// Open a file as RandomAccessReader
+// Reader using MMAP system call
+absl::StatusOr<std::unique_ptr<RandomAccessReader>>
+OpenMmapRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept;
 
 // Get the size of the specified file
 absl::StatusOr<std::size_t> GetFileSize(

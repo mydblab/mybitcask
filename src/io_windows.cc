@@ -23,11 +23,10 @@ std::string GetWindowsErrorMessage(DWORD error_code) {
   return message;
 }
 
-class WindowsRandomAccessReader : public RandomAccessReader {
+class WindowsRandomAccessFileReader final : public RandomAccessReader {
  public:
-  WindowsRandomAccessReader(HANDLE&& handle)
-      : handle_(std::move(handle)){};
-  ~WindowsRandomAccessReader() override { ::CloseHandle(handle_); }
+  WindowsRandomAccessFileReader(HANDLE&& handle) : handle_(std::move(handle)){};
+  ~WindowsRandomAccessFileReader() override { ::CloseHandle(handle_); }
 
   absl::StatusOr<std::size_t> ReadAt(
       std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
@@ -46,15 +45,17 @@ class WindowsRandomAccessReader : public RandomAccessReader {
     return actual_size;
   }
 
+  void Obsolete() noexcept {}
+
  private:
   const HANDLE handle_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
+  OpenRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept;
 };
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
-    const ghc::filesystem::path& filename) noexcept {
+    ghc::filesystem::path&& filename) noexcept {
   DWORD desired_access = GENERIC_READ;
   DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;
   HANDLE handle = ::CreateFileA(
@@ -67,7 +68,12 @@ absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
   }
 
   return std::unique_ptr<RandomAccessReader>(
-      new WindowsRandomAccessReader(std::move(handle)));
+      new WindowsRandomAccessFileReader(std::move(handle)));
+}
+
+absl::StatusOr<std::unique_ptr<RandomAccessReader>>
+OpenMmapRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept {
+  return absl::UnimplementedError("Unimplemented");
 }
 
 }  // namespace io
