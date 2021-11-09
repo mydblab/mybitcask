@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <cstring>
+#include <algorithm>
 
 namespace mybitcask {
 namespace io {
@@ -12,7 +13,7 @@ class PosixMmapRandomAccessFileReader final : public RandomAccessReader {
  public:
   PosixMmapRandomAccessFileReader() = delete;
   ~PosixMmapRandomAccessFileReader() override {
-    munmap(static_cast<void*>(mmap_base_), length_);
+    ::munmap(static_cast<void*>(mmap_base_), length_);
   }
 
   absl::StatusOr<std::size_t> ReadAt(
@@ -71,13 +72,13 @@ OpenMmapRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept {
     return absl::Status(file_size.status());
   }
 
-  void* mmap_base_ =
+  void* mmap_base =
       ::mmap(/*addr=*/nullptr, *file_size, PROT_READ, MAP_SHARED, fd, 0);
 
   ::close(fd);
   return std::unique_ptr<RandomAccessReader>(
       new PosixMmapRandomAccessFileReader(
-          reinterpret_cast<std::uint8_t*>(mmap_base_), *file_size));
+          reinterpret_cast<std::uint8_t*>(mmap_base), *file_size));
 }
 
 absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
