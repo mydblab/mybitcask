@@ -12,7 +12,8 @@ namespace log {
 
 absl::StatusOr<std::unique_ptr<log::LogReader>> create_log_reader(
     const ghc::filesystem::path& filename) {
-  auto src = io::OpenRandomAccessFileReader(filename);
+  auto src = io::OpenRandomAccessFileReader(
+      std::move(const_cast<ghc::filesystem::path&>(filename)));
   if (!src.ok()) {
     return src.status();
   }
@@ -61,10 +62,10 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
 
   std::vector<TestCase> cases = {
       {"hello", "world"},
-      // {"lbw", "nb"},
-      // {"玩游戏一定要", "啸"},
-      // {test::GenerateRandomString(0xFF),
-      //  test::GenerateRandomString(0xFFFF - 1)},
+      {"lbw", "nb"},
+      {"玩游戏一定要", "啸"},
+      {test::GenerateRandomString(0xFF),
+       test::GenerateRandomString(0xFFFF - 1)},
   };
 
   absl::StatusOr<std::uint64_t> offset;

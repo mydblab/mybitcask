@@ -48,10 +48,13 @@ Store::Store(file_id_t latest_file_id, ghc::filesystem::path path,
              std::function<std::string(file_id_t)> filename_fn,
              std::size_t dead_bytes_threshold)
     : latest_file_id_(latest_file_id),
+      latest_file_id_lock_(),
       path_(path),
       filename_fn_(filename_fn),
       dead_bytes_threshold_(dead_bytes_threshold),
-      writer_(nullptr) {}
+      writer_(nullptr),
+      readers_(),
+      readers_lock_() {}
 
 absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   readers_lock_.ReaderLock();

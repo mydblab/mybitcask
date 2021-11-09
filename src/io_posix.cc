@@ -4,15 +4,16 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <cstring>
+#include <algorithm>
 
 namespace mybitcask {
 namespace io {
 
-class PosixMmapRandomAccessReader : public RandomAccessReader {
+class PosixMmapRandomAccessFileReader final : public RandomAccessReader {
  public:
-  PosixMmapRandomAccessReader() = delete;
-  ~PosixMmapRandomAccessReader() override {
-    munmap(static_cast<void*>(mmap_base_), length_);
+  PosixMmapRandomAccessFileReader() = delete;
+  ~PosixMmapRandomAccessFileReader() override {
+    ::munmap(static_cast<void*>(mmap_base_), length_);
   }
 
   absl::StatusOr<std::size_t> ReadAt(
@@ -27,18 +28,41 @@ class PosixMmapRandomAccessReader : public RandomAccessReader {
   }
 
  private:
-  PosixMmapRandomAccessReader(std::uint8_t* mmap_base, std::size_t length)
+  PosixMmapRandomAccessFileReader(std::uint8_t* mmap_base, std::size_t length)
       : mmap_base_(mmap_base), length_(length) {}
   std::uint8_t* const mmap_base_;
   const std::size_t length_;
 
   friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
-  OpenRandomAccessFileReader(const ghc::filesystem::path& filename) noexcept;
+  OpenMmapRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept;
 };
 
-absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
-    const ghc::filesystem::path& filename) noexcept {
-  int fd = ::open(filename.generic_string().data(), O_RDWR | O_CREAT, 0644);
+class PosixRandomAccessFileReader final : public RandomAccessReader {
+ public:
+  PosixRandomAccessFileReader() = delete;
+  ~PosixRandomAccessFileReader() override { ::close(fd_); }
+
+  absl::StatusOr<std::size_t> ReadAt(
+      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
+    ssize_t actual_size =
+        ::pread(fd_, dst.data(), dst.size(), static_cast<off_t>(offset));
+    if (actual_size < 0) {
+      return absl::InternalError("pread failed");
+    }
+    return actual_size;
+  }
+
+ private:
+  PosixRandomAccessFileReader(const int fd) : fd_(fd) {}
+  const int fd_;
+
+  friend absl::StatusOr<std::unique_ptr<RandomAccessReader>>
+  OpenRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept;
+};
+
+absl::StatusOr<std::unique_ptr<RandomAccessReader>>
+OpenMmapRandomAccessFileReader(ghc::filesystem::path&& filename) noexcept {
+  int fd = ::open(filename.string().c_str(), O_RDWR | O_CREAT, 0644);
   if (fd < 0) {
     return absl::InternalError(kErrOpenFailed);
   }
@@ -48,12 +72,23 @@ absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
     return absl::Status(file_size.status());
   }
 
-  void* mmap_base_ =
+  void* mmap_base =
       ::mmap(/*addr=*/nullptr, *file_size, PROT_READ, MAP_SHARED, fd, 0);
 
   ::close(fd);
-  return std::unique_ptr<RandomAccessReader>(new PosixMmapRandomAccessReader(
-      reinterpret_cast<std::uint8_t*>(mmap_base_), *file_size));
+  return std::unique_ptr<RandomAccessReader>(
+      new PosixMmapRandomAccessFileReader(
+          reinterpret_cast<std::uint8_t*>(mmap_base), *file_size));
+}
+
+absl::StatusOr<std::unique_ptr<RandomAccessReader>> OpenRandomAccessFileReader(
+    ghc::filesystem::path&& filename) noexcept {
+  int fd = ::open(filename.string().c_str(), O_RDWR | O_CREAT, 0644);
+  if (fd < 0) {
+    return absl::InternalError(kErrOpenFailed);
+  }
+  return std::unique_ptr<RandomAccessReader>(
+      new PosixRandomAccessFileReader(fd));
 }
 
 }  // namespace io
