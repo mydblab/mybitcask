@@ -29,7 +29,7 @@ class SequentialReader {
   // guaranteed that no bytes were read.
   //
   // REQUIRES: External synchronization
-  virtual absl::StatusOr<size_t> Read(
+  virtual absl::StatusOr<std::size_t> Read(
       absl::Span<std::uint8_t> dst) noexcept = 0;
 
   // Seek to offset `offset`, in bytes, in this reader.
@@ -53,7 +53,7 @@ class RandomAccessReader {
   // encountered, a non-OK status will be returned.
   //
   // Safe for concurrent use by multiple threads.
-  virtual absl::StatusOr<size_t> ReadAt(
+  virtual absl::StatusOr<std::size_t> ReadAt(
       uint64_t offset, absl::Span<std::uint8_t> dst) noexcept = 0;
 };
 
