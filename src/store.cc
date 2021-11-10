@@ -137,16 +137,16 @@ std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
   for (auto const& dir_entry : ghc::filesystem::directory_iterator(path)) {
     file_id_t file_id;
     FileType file_type;
-    if (ParseFileName(dir_entry.path().filename(), &file_id, &file_type)) {
+    if (ParseFileName(dir_entry.path().filename().string(), &file_id, &file_type)) {
       if (file_type == FileType::kLogFile) {
-        latest_file_id = std::max(latest_file_id, file_id);
+        latest_file_id = (std::max)(latest_file_id, file_id);
       }
     }
   }
 
   return std::unique_ptr<Store>(new Store(
       latest_file_id, path,
-      [&path](file_id_t file_id) { return path / LogFileName(file_id); },
+      [&path](file_id_t file_id) { return (path / LogFileName(file_id)).string(); },
       dead_bytes_threshold));
 }
 
