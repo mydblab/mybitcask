@@ -15,7 +15,7 @@ TEST(IoTest, SequentialWriter) {
   const std::string test_data = "test data.";
 
   {
-    auto filename = tempfile->filename();
+    auto filename = tempfile->path();
     auto writer = OpenSequentialFileWriter(std::move(filename));
     ASSERT_TRUE(writer.ok());
     auto file_size = (*writer)->Size();
@@ -26,16 +26,16 @@ TEST(IoTest, SequentialWriter) {
          test_data.size()});
     ASSERT_TRUE(append_status.ok());
     auto sync_status = (*writer)->Sync();
+    ASSERT_TRUE(sync_status.ok());
 
     file_size = (*writer)->Size();
     ASSERT_TRUE(file_size.ok());
     ASSERT_EQ(*file_size, test_data.size());
 
-    ASSERT_TRUE(sync_status.ok());
     // The writer outside the current scope will be destructed
   }
 
-  std::ifstream tempfile_stream(tempfile->filename());
+  std::ifstream tempfile_stream(tempfile->path());
   std::stringstream read_data;
   read_data << tempfile_stream.rdbuf();
   tempfile_stream.close();
@@ -49,11 +49,11 @@ TEST(IoTest, RandomAccessFileReader) {
 
   const std::string test_data = "test data.";
 
-  std::ofstream tempfile_stream(tempfile->filename());
+  std::ofstream tempfile_stream(tempfile->path());
   tempfile_stream << test_data;
   tempfile_stream.close();
 
-  auto filename = tempfile->filename();
+  auto filename = tempfile->path();
   auto reader = OpenRandomAccessFileReader(std::move(filename));
   ASSERT_TRUE(reader.ok());
 
@@ -72,11 +72,11 @@ TEST(IoTest, MmapRandomAccessFileReader) {
 
   const std::string test_data = "test data.";
 
-  std::ofstream tempfile_stream(tempfile->filename());
+  std::ofstream tempfile_stream(tempfile->path());
   tempfile_stream << test_data;
   tempfile_stream.close();
 
-  auto filename = tempfile->filename();
+  auto filename = tempfile->path();
   auto reader = OpenMmapRandomAccessFileReader(std::move(filename));
   ASSERT_TRUE(reader.ok());
 

@@ -5,27 +5,25 @@
 namespace mybitcask {
 namespace test {
 
-const ghc::filesystem::path& TempFile::filename() const { return filename_; }
+const ghc::filesystem::path& TempFile::path() const { return path_; }
 
-TempFile::TempFile(ghc::filesystem::path&& filename)
-    : filename_(std::move(filename)) {
-  std::ofstream f(filename_);
+TempFile::TempFile(ghc::filesystem::path&& path) : path_(std::move(path)) {
+  std::ofstream f(path_);
   f.close();
 }
 
-TempFile::TempFile(TempFile&& other) noexcept
-    : filename_(std::move(other.filename_)) {}
+TempFile::TempFile(TempFile&& other) noexcept : path_(std::move(other.path_)) {}
 
 TempFile& TempFile::operator=(TempFile&& other) noexcept {
-  if (filename_ != other.filename_) {
-    filename_ = std::move(other.filename_);
+  if (path_ != other.path_) {
+    path_ = std::move(other.path_);
   }
   return *this;
 }
 
 TempFile::~TempFile() {
-  if (!filename_.empty()) {
-    ghc::filesystem::remove(filename_);
+  if (!path_.empty()) {
+    ghc::filesystem::remove_all(path_);
   }
 }
 
@@ -39,6 +37,24 @@ absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
     return absl::Status(temp_filename.status());
   }
   return TempFile(std::move(temp_filename.value()));
+}
+
+absl::StatusOr<TempFile> MakeTempDir(std::string&& prefix,
+                                     std::size_t name_length) noexcept {
+  auto temp_dirname =
+      TempFilename(std::forward<std::string>(prefix), "", name_length);
+  if (!temp_dirname.ok()) {
+    return absl::Status(temp_dirname.status());
+  }
+  std::error_code ec;
+  auto create_ok = ghc::filesystem::create_directories(*temp_dirname, ec);
+  if (ec) {
+    return absl::InternalError(ec.message());
+  }
+  if (!create_ok) {
+    return absl::InternalError("directory create failed");
+  }
+  return TempFile(std::move(temp_dirname.value()));
 }
 
 absl::StatusOr<ghc::filesystem::path> TempFilename(
