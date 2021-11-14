@@ -23,7 +23,8 @@ absl::StatusOr<std::size_t> Store::ReadAt(
   return (*r)->ReadAt(pos.offset_in_file, dst);
 }
 
-absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
+absl::Status Store::Append(absl::Span<const uint8_t> src,
+                           std::function<void()> success_callback) noexcept {
   absl::WriterMutexLock l(&latest_file_id_lock_);
   auto file_size = io::GetFileSize(path_ / filename_fn_(latest_file_id_));
   if (!file_size.ok()) {
@@ -37,7 +38,7 @@ absl::Status Store::Append(absl::Span<const uint8_t> src) noexcept {
     }
     writer_ = *std::move(writer);
   }
-  return writer_->Append(src);
+  return writer_->Append(src, success_callback);
 }
 
 absl::Status Store::Sync() noexcept { return writer_->Sync(); }

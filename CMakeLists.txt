@@ -17,6 +17,7 @@ add_library(${PROJECT_NAME}
   src/io.cc
   src/store_filename.cc
   src/store.cc
+  src/mybitcask.cc
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
@@ -35,6 +36,8 @@ target_link_libraries(${PROJECT_NAME}
   absl::synchronization
   absl::optional
   absl::endian
+  absl::btree
+  absl::strings
   ghc_filesystem
 )
 
@@ -58,5 +61,6 @@ if(Gtest_FOUND)
   mybitcask_test(src/io_test.cc)
   mybitcask_test(src/store_test.cc)
   mybitcask_test(src/store_filename_test.cc)
+  mybitcask_test(src/mybitcask_test.cc)
 
 endif()

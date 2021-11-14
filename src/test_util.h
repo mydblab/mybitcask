@@ -1,3 +1,6 @@
+#ifndef MYBITCASK_SRC_TEST_UTIL_H_
+#define MYBITCASK_SRC_TEST_UTIL_H_
+
 #include "absl/status/statusor.h"
 #include "ghc/filesystem.hpp"
 #include "io.h"
@@ -54,3 +57,5 @@ absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept;
 
 }  // namespace test
 }  // namespace mybitcask
+
+#endif  // MYBITCASK_SRC_TEST_UTIL_H_

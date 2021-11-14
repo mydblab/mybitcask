@@ -1,4 +1,4 @@
-#include "io.h"
+#include "mybitcask/internal/io.h"
 
 #include <fstream>
 
@@ -10,7 +10,9 @@ class FStreamSequentialWriter : public SequentialWriter {
   FStreamSequentialWriter() = delete;
   ~FStreamSequentialWriter() override { file_.close(); }
 
-  absl::Status Append(absl::Span<const std::uint8_t> src) noexcept override {
+  absl::Status Append(
+      absl::Span<const std::uint8_t> src,
+      std::function<void()> success_callback) noexcept override {
     file_.write(reinterpret_cast<const char*>(src.data()), src.size());
     return absl::OkStatus();
   }
@@ -32,8 +34,8 @@ class FStreamSequentialWriter : public SequentialWriter {
   std::ofstream file_;
   const ghc::filesystem::path filename_;
 
-  friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
-      ghc::filesystem::path&& filename) noexcept;
+  friend absl::StatusOr<std::unique_ptr<SequentialWriter>>
+  OpenSequentialFileWriter(ghc::filesystem::path&& filename) noexcept;
 };
 
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
