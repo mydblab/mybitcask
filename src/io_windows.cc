@@ -71,13 +71,13 @@ class WindowsMmapRandomAccessFileReader final : public RandomAccessReader {
   }
 
   absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
-    if (offset >= length_ - 1) {
+      std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
+    std::size_t offset_size = static_cast<std::size_t>(offset);
+    if (offset_size >= length_ - 1) {
       return absl::OutOfRangeError("offset is too large");
     }
-    auto actual_size =
-        (std::min)(static_cast<std::size_t>(length_ - offset), dst.size());
-    std::memcpy(dst.data(), mmap_base_ + offset, actual_size);
+    auto actual_size = (std::min)(length_ - offset_size, dst.size());
+    std::memcpy(dst.data(), mmap_base_ + offset_size, actual_size);
     return actual_size;
   }
 

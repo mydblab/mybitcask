@@ -25,16 +25,21 @@ class TempFile {
 
   ~TempFile();
 
-  const ghc::filesystem::path& filename() const;
+  const ghc::filesystem::path& path() const;
 
  private:
-  ghc::filesystem::path filename_;
+  ghc::filesystem::path path_;
 };
 
 // Create a temporary file
 absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix = "",
                                       std::string&& suffix = "",
-                                      std::size_t size = 12) noexcept;
+                                      std::size_t name_length = 12) noexcept;
+
+// Create a temporary directory
+absl::StatusOr<TempFile> MakeTempDir(std::string&& prefix = "",
+                                     std::size_t name_length = 12) noexcept;
+
 // returns a unique temp filename
 absl::StatusOr<ghc::filesystem::path> TempFilename(
     std::string&& prefix = "", std::string&& suffix = "",

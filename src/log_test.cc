@@ -47,10 +47,10 @@ absl::StatusOr<std::unique_ptr<log::LogWriter>> create_log_writer(
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->filename(), false);
+  auto log_reader = create_log_reader(tempfile->path(), false);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
-  auto log_writer = create_log_writer(tempfile->filename());
+  auto log_writer = create_log_writer(tempfile->path());
   ASSERT_TRUE(log_writer.ok())
       << "Field to create log writer. error: " << log_writer.status();
 
@@ -103,7 +103,7 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
 TEST(LogReaderTest, ReadEmptyFile) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->filename(), false);
+  auto log_reader = create_log_reader(tempfile->path(), false);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
 
@@ -151,11 +151,11 @@ class StreamUtil {
 TEST(LogWriterTest, ReadWrongEntry) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->filename(), true);
+  auto log_reader = create_log_reader(tempfile->path(), true);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
 
-  std::ofstream inner(tempfile->filename(), std::ios::binary | std::ios::out);
+  std::ofstream inner(tempfile->path(), std::ios::binary | std::ios::out);
   StreamUtil w(&inner);
 
   // test for invalid CRC
@@ -204,7 +204,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
 TEST(LogWriterTest, AppendWithWrongKVLength) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_writer = create_log_writer(tempfile->filename());
+  auto log_writer = create_log_writer(tempfile->path());
   ASSERT_TRUE(log_writer.ok())
       << "Field to create log writer. error: " << log_writer.status();
 

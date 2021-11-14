@@ -48,7 +48,11 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
 
   // Latest file id
   file_id_t latest_file_id_;
-  absl::Mutex latest_file_id_lock_;
+  // Latest file writer
+  std::unique_ptr<SequentialWriter> latest_writer_;
+  // Latest file reader
+  std::unique_ptr<RandomAccessReader> latest_reader_;
+  absl::Mutex latest_file_lock_;
 
   // Database file path
   ghc::filesystem::path path_;
@@ -57,13 +61,13 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   // Function to generate file name by file id
   const std::function<std::string(file_id_t)> filename_fn_;
 
-  // Latest file writer
-  std::unique_ptr<SequentialWriter> writer_;
   // All readers
   std::unordered_map<file_id_t, std::unique_ptr<RandomAccessReader>> readers_;
   absl::Mutex readers_lock_;
 };
 
+std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
+                            std::size_t dead_bytes_threshold);
 }  // namespace store
 }  // namespace mybitcask
 
