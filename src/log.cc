@@ -1,4 +1,4 @@
-#include "log.h"
+#include "mybitcask/internal/log.h"
 #include "absl/base/internal/endian.h"
 #include "assert.h"
 #include "crc32c/crc32c.h"
@@ -34,7 +34,7 @@ const std::size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
 
 // Header represents log entry header which contains CRC32C, key_size and
 // value_size
-class Header {
+class Header final {
  public:
   Header(std::uint8_t* const data) : data_(data) {}
 
@@ -59,14 +59,15 @@ class Header {
   std::uint8_t* data() { return data_; }
 
   // Returns true if the crc is correct, false if it's incorrect
-  bool check_crc(absl::Span<const std::uint8_t> kv_data) const {
+  bool check_crc(const std::uint8_t* kv_data) const {
     return crc32() == calc_actual_crc(kv_data);
   }
 
   // Calculate crc32 from key_size, value_size and kv_buf
-  std::uint32_t calc_actual_crc(absl::Span<const std::uint8_t> kv_data) const {
+  std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const {
     auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeySzLen + kValSzLen);
-    return crc32c::Extend(header_crc, kv_data.data(), kv_data.size());
+    return crc32c::Extend(header_crc, kv_data,
+                          static_cast<std::size_t>(key_size()) + value_size());
   }
 
  private:
@@ -79,42 +80,42 @@ class Header {
   std::uint8_t* const data_;
 };
 
-LogReader::LogReader(std::unique_ptr<io::RandomAccessReader>&& src)
-    : src_(std::move(src)) {}
+Entry::Entry(std::size_t length)
+    : ptr_(new uint8_t[length]), key_size_(0), value_size_(0) {}
+
+absl::Span<const std::uint8_t> Entry::key() const {
+  return {raw_ptr() + kHeaderLen, key_size_};
+}
+
+absl::Span<const std::uint8_t> Entry::value() const {
+  return {raw_ptr() + kHeaderLen + key_size_, value_size_};
+}
+
+LogReader::LogReader(std::unique_ptr<io::RandomAccessReader>&& src,
+                     bool checksum)
+    : src_(std::move(src)), checksum_(checksum) {}
 
 absl::Status LogReader::Init() noexcept { return absl::OkStatus(); }
 
-absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-    std::uint64_t offset) noexcept {
-  // read header
-  std::uint8_t header_data[kHeaderLen]{};
-  Header header(header_data);
-
-  auto read_len = src_->ReadAt(offset, header_data);
+absl::StatusOr<absl::optional<Entry>> LogReader::Read(Position pos) noexcept {
+  Entry entry(pos.length);
+  auto read_len = src_->ReadAt(pos.offset, {entry.raw_ptr(), pos.length});
   if (!read_len.ok()) {
     return read_len.status();
   }
   if (*read_len == 0) {
-    // key does not exist
+    // entry does not exist
     return absl::nullopt;
   }
-  if (*read_len != kHeaderLen) {
+  if (*read_len != pos.length) {
     return absl::InternalError(kErrBadEntry);
   }
-  auto key_size = header.key_size();
-  auto value_size = header.value_size();
-  // read key and value
-  Entry entry(key_size, value_size);
-  absl::Span<std::uint8_t> buf = {entry.raw_ptr(), entry.raw_buf_size()};
-  read_len = src_->ReadAt(offset + kHeaderLen, buf);
-  if (!read_len.ok()) {
-    return read_len.status();
-  }
-  if (*read_len != buf.size()) {
-    return absl::InternalError(kErrBadEntry);
-  }
+  Header header(entry.raw_ptr());
+  entry.set_key_size(header.key_size());
+  entry.set_value_size(header.value_size());
+
   // check crc
-  if (!header.check_crc(buf)) {
+  if (checksum_ && !header.check_crc(entry.key().data())) {
     return absl::InternalError(kErrBadEntry);
   }
   if (header.is_tombstone()) {
@@ -135,23 +136,24 @@ absl::Status LogWriter::Init() noexcept {
   return absl::OkStatus();
 }
 
-absl::StatusOr<std::uint64_t> LogWriter::AppendTombstone(
-    absl::Span<const std::uint8_t> key) noexcept {
-  return AppendInner(key, {});
+absl::Status LogWriter::AppendTombstone(
+    absl::Span<const std::uint8_t> key,
+    std::function<void(Position)> success_callback) noexcept {
+  return AppendInner(key, {}, success_callback);
 }
 
-absl::StatusOr<std::uint64_t> LogWriter::Append(
-    absl::Span<const std::uint8_t> key,
-    absl::Span<const std::uint8_t> value) noexcept {
+absl::Status LogWriter::Append(
+    absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
+    std::function<void(Position)> success_callback) noexcept {
   if (value.size() == 0) {
     return absl::InternalError(kErrBadValueLength);
   }
-  return AppendInner(key, value);
+  return AppendInner(key, value, success_callback);
 }
 
-absl::StatusOr<std::uint64_t> LogWriter::AppendInner(
-    absl::Span<const std::uint8_t> key,
-    absl::Span<const std::uint8_t> value) noexcept {
+absl::Status LogWriter::AppendInner(
+    absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
+    std::function<void(Position)> success_callback) noexcept {
   if (key.size() == 0 || key.size() > 0xFF) {
     return absl::InternalError(kErrBadKeyLength);
   }
@@ -159,7 +161,7 @@ absl::StatusOr<std::uint64_t> LogWriter::AppendInner(
     return absl::InternalError(kErrBadValueLength);
   }
 
-  auto buf_len = kHeaderLen + key.size() + value.size();
+  std::size_t buf_len = kHeaderLen + key.size() + value.size();
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
   Header header(buf.get());
@@ -173,13 +175,14 @@ absl::StatusOr<std::uint64_t> LogWriter::AppendInner(
     header.set_tombstone();
   }
 
-  header.set_crc32(
-      header.calc_actual_crc({&buf[kHeaderLen], key.size() + value.size()}));
+  header.set_crc32(header.calc_actual_crc(&buf[kHeaderLen]));
 
-  auto offset_to_be_appended = last_append_offset_;
   const std::lock_guard<std::mutex> lock(append_lock_);
-
-  auto status = dest_->Append({buf.get(), buf_len});
+  auto status = dest_->Append(
+      {buf.get(), buf_len}, [offset_to_be_appended = last_append_offset_,
+                             buf_len, &success_callback]() {
+        success_callback(Position{offset_to_be_appended, buf_len});
+      });
   if (!status.ok()) {
     return status;
   }
@@ -188,7 +191,7 @@ absl::StatusOr<std::uint64_t> LogWriter::AppendInner(
     return status;
   }
   last_append_offset_ += buf_len;
-  return offset_to_be_appended;
+  return absl::OkStatus();
 }
 
 }  // namespace log

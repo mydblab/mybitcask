@@ -1,9 +1,10 @@
 #ifndef MYBITCASK_SRC_STORE_H_
 #define MYBITCASK_SRC_STORE_H_
 
+#include "mybitcask/internal/io.h"
+
 #include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
-#include "io.h"
 
 #include <unordered_map>
 
@@ -26,7 +27,8 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   absl::StatusOr<std::size_t> ReadAt(const Position& pos,
                                      absl::Span<std::uint8_t> dst) noexcept;
 
-  absl::Status Append(absl::Span<const std::uint8_t> src) noexcept override;
+  absl::Status Append(absl::Span<const std::uint8_t> src,
+                      std::function<void()> success_callback) noexcept override;
 
   absl::Status Sync() noexcept override;
 

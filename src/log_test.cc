@@ -1,8 +1,9 @@
-#include "log.h"
+#include "mybitcask/internal/log.h"
+#include "mybitcask/internal/io.h"
+
 #include "absl/base/internal/endian.h"
 #include "crc32c/crc32c.h"
 #include "gtest/gtest.h"
-#include "io.h"
 #include "test_util.h"
 
 #include <random>
@@ -11,14 +12,14 @@ namespace mybitcask {
 namespace log {
 
 absl::StatusOr<std::unique_ptr<log::LogReader>> create_log_reader(
-    const ghc::filesystem::path& filename) {
+    const ghc::filesystem::path& filename, bool checksum) {
   auto src = io::OpenRandomAccessFileReader(
       std::move(const_cast<ghc::filesystem::path&>(filename)));
   if (!src.ok()) {
     return src.status();
   }
   std::unique_ptr<log::LogReader> log_reader(
-      new log::LogReader(*std::move(src)));
+      new log::LogReader(*std::move(src), checksum));
   auto status = log_reader->Init();
   if (!status.ok()) {
     return absl::Status(status);
@@ -46,7 +47,7 @@ absl::StatusOr<std::unique_ptr<log::LogWriter>> create_log_writer(
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->path());
+  auto log_reader = create_log_reader(tempfile->path(), false);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
   auto log_writer = create_log_writer(tempfile->path());
@@ -68,14 +69,16 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
        test::GenerateRandomString(0xFFFF - 1)},
   };
 
-  absl::StatusOr<std::uint64_t> offset;
+  absl::Status append_status;
+  Position position;
   absl::StatusOr<absl::optional<Entry>> entry_opt;
 
   for (const auto& c : cases) {
-    offset =
-        (*log_writer)->Append(test::StrSpan(c.key), test::StrSpan(c.value));
-    ASSERT_TRUE(offset.ok()) << "append error: " << offset.status();
-    entry_opt = (*log_reader)->Read(*offset);
+    append_status = (*log_writer)
+                        ->Append(test::StrSpan(c.key), test::StrSpan(c.value),
+                                 [&](Position pos) { position = pos; });
+    ASSERT_TRUE(append_status.ok()) << "append error: " << append_status;
+    entry_opt = (*log_reader)->Read(position);
     ASSERT_TRUE(entry_opt.ok()) << "read error: " << entry_opt.status();
     ASSERT_TRUE(entry_opt->has_value());
     EXPECT_EQ((*entry_opt)->key(), test::StrSpan(c.key));
@@ -84,9 +87,12 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
 
   // test read tombstone
   for (const auto& c : cases) {
-    offset = (*log_writer)->AppendTombstone(test::StrSpan(c.key));
-    ASSERT_TRUE(offset.ok()) << "append error: " << offset.status();
-    entry_opt = (*log_reader)->Read(*offset);
+    append_status =
+        (*log_writer)->AppendTombstone(test::StrSpan(c.key), [&](Position pos) {
+          position = pos;
+        });
+    ASSERT_TRUE(append_status.ok()) << "append error: " << append_status;
+    entry_opt = (*log_reader)->Read(position);
     ASSERT_TRUE(entry_opt.ok())
         << "read tombstone entry error: " << entry_opt.status();
     ASSERT_FALSE(entry_opt->has_value())
@@ -97,12 +103,12 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
 TEST(LogReaderTest, ReadEmptyFile) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->path());
+  auto log_reader = create_log_reader(tempfile->path(), false);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
 
-  for (auto offset : {0, 1, 100}) {
-    auto entry_opt = (*log_reader)->Read(offset);
+  for (std::uint64_t offset : {0, 1, 100}) {
+    auto entry_opt = (*log_reader)->Read(Position{offset, 100});
     ASSERT_TRUE(entry_opt.ok()) << "read error: " << entry_opt.status();
     EXPECT_FALSE(entry_opt->has_value())
         << "Reading a log entry from an empty file should return nullopt";
@@ -145,7 +151,7 @@ class StreamUtil {
 TEST(LogWriterTest, ReadWrongEntry) {
   auto tempfile = test::MakeTempFile("mybitcask_test_");
   ASSERT_TRUE(tempfile.ok());
-  auto log_reader = create_log_reader(tempfile->path());
+  auto log_reader = create_log_reader(tempfile->path(), true);
   ASSERT_TRUE(log_reader.ok())
       << "Field to create log reader. error: " << log_reader.status();
 
@@ -160,7 +166,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
   w.Push(test::StrSpan("b"));  // value
   auto offset = w.offset();
   inner.flush();
-  auto entry_opt = (*log_reader)->Read(0);
+  auto entry_opt = (*log_reader)->Read(Position{0, offset});
   EXPECT_FALSE(entry_opt.ok()) << "read an entry with bad crc should fail";
   EXPECT_EQ(entry_opt.status().message(), kErrBadEntry)
       << "read an entry with bad crc should return kErrBadEntry";
@@ -171,7 +177,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
   w.Push(test::StrSpan("a"));  // key
   w.Push(test::StrSpan(""));   // value
   inner.flush();
-  entry_opt = (*log_reader)->Read(offset);
+  entry_opt = (*log_reader)->Read(Position{offset, w.offset() - offset});
   offset = w.offset();
   EXPECT_FALSE(entry_opt.ok()) << "read an entry with bad crc should fail";
   EXPECT_EQ(entry_opt.status().message(), kErrBadEntry)
@@ -187,7 +193,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
   w.PushU32(crc32c::Crc32c(data, 5));
   w.Push(data);
   inner.flush();
-  entry_opt = (*log_reader)->Read(offset);
+  entry_opt = (*log_reader)->Read(Position{offset, w.offset() - offset});
   EXPECT_FALSE(entry_opt.ok())
       << "read an entry with incorrect key/value length should fail";
   EXPECT_EQ(entry_opt.status().message(), kErrBadEntry)
@@ -203,51 +209,56 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
       << "Field to create log writer. error: " << log_writer.status();
 
   // Append entry with empty key
-  auto offset =
-      (*log_writer)->Append(test::StrSpan(""), test::StrSpan("not care"));
-  EXPECT_FALSE(offset.ok()) << "append entry with an empty key  should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadKeyLength)
+  auto status = (*log_writer)
+                    ->Append(test::StrSpan(""), test::StrSpan("not care"),
+                             [](Position) {});
+  EXPECT_FALSE(status.ok()) << "append entry with an empty key  should fail";
+  EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append entry with an empty key should return kErrBadKeyLength";
-  offset = (*log_writer)->AppendTombstone(test::StrSpan(""));
-  EXPECT_FALSE(offset.ok())
+  status = (*log_writer)->AppendTombstone(test::StrSpan(""), [](Position) {});
+  EXPECT_FALSE(status.ok())
       << "append tombstone entry with an empty key should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadKeyLength)
+  EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append tombstone entry with an empty key should return "
          "kErrBadKeyLength";
 
   // Append entry with empty value
-  offset = (*log_writer)->Append(test::StrSpan("not care"), test::StrSpan(""));
-  EXPECT_FALSE(offset.ok()) << "append entry with empty value should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadValueLength)
+  status = (*log_writer)
+               ->Append(test::StrSpan("not care"), test::StrSpan(""),
+                        [](Position) {});
+  EXPECT_FALSE(status.ok()) << "append entry with empty value should fail";
+  EXPECT_EQ(status.message(), kErrBadValueLength)
       << "append entry with empty value should return kErrBadValueLength";
 
   // Append entry with an oversized key
-  offset =
+  status =
       (*log_writer)
           ->Append(test::StrSpan(test::GenerateRandomString(0xFF, 0xFF + 100)),
-                   test::StrSpan("not care"));
-  EXPECT_FALSE(offset.ok()) << "append entry with an oversized key should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadKeyLength)
+                   test::StrSpan("not care"), [](Position) {});
+  EXPECT_FALSE(status.ok()) << "append entry with an oversized key should fail";
+  EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append entry with an oversized key should return kErrBadKeyLength";
 
-  offset = (*log_writer)
+  status = (*log_writer)
                ->AppendTombstone(
-                   test::StrSpan(test::GenerateRandomString(0xFF, 0xFF + 100)));
-  EXPECT_FALSE(offset.ok())
+                   test::StrSpan(test::GenerateRandomString(0xFF, 0xFF + 100)),
+                   [](Position) {});
+  EXPECT_FALSE(status.ok())
       << "append tombstone entry with an oversized key should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadKeyLength)
+  EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append tombstone entry with an oversized key should return "
          "kErrBadKeyLength";
 
   // Append entry with an oversized value
-  offset =
+  status =
       (*log_writer)
           ->Append(
               test::StrSpan("not care"),
-              test::StrSpan(test::GenerateRandomString(0xFFFF, 0xFFFF + 200)));
-  EXPECT_FALSE(offset.ok())
+              test::StrSpan(test::GenerateRandomString(0xFFFF, 0xFFFF + 200)),
+              [](Position) {});
+  EXPECT_FALSE(status.ok())
       << "append entry with an oversized value should fail";
-  EXPECT_EQ(offset.status().message(), kErrBadValueLength)
+  EXPECT_EQ(status.message(), kErrBadValueLength)
       << "append entry with an oversized value should return "
          "kErrBadValueLength";
 }
