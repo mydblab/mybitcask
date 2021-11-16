@@ -19,7 +19,8 @@ class MyBitcask {
   // If the database contains an entry for `key` store the
   // corresponding value in `value` and return true
   // If there is no entry for "key" leave `value` unchanged and return false
-  absl::StatusOr<bool> Get(absl::string_view key, std::string* value) noexcept;
+  absl::StatusOr<bool> Get(absl::string_view key, std::string* value,
+                           int try_num) noexcept;
 
   // Writes a key/value pair into store
   absl::Status Insert(const std::string& key,
