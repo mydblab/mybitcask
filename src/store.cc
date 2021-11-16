@@ -7,21 +7,6 @@ namespace mybitcask {
 namespace store {
 
 absl::StatusOr<std::size_t> Store::ReadAt(
-    uint64_t offset, absl::Span<std::uint8_t> dst) noexcept {
-  // Convert absolute offset to position (file_id + offset in file), and the
-  // fixed size of a single file is dead_bytes_threshold_ bytes.
-  auto file_id = offset / dead_bytes_threshold_;
-  auto offset_in_file = offset % dead_bytes_threshold_;
-
-  if (static_cast<std::size_t>(offset) + dst.length() > dead_bytes_threshold_) {
-    file_id += 1;
-    offset_in_file = 0;
-  }
-
-  return ReadAt(Position{static_cast<file_id_t>(file_id), offset_in_file}, dst);
-}
-
-absl::StatusOr<std::size_t> Store::ReadAt(
     const Position& pos, absl::Span<std::uint8_t> dst) noexcept {
   auto r = reader(pos.file_id);
   if (!r.ok()) {

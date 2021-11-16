@@ -19,21 +19,18 @@ struct Position {
   uint64_t offset_in_file;
 };
 
-class Store : public io::RandomAccessReader, public io::SequentialWriter {
+class Store {
  public:
-  absl::StatusOr<std::size_t> ReadAt(
-      uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override;
-
   absl::StatusOr<std::size_t> ReadAt(const Position& pos,
                                      absl::Span<std::uint8_t> dst) noexcept;
 
   absl::Status Append(
       absl::Span<const std::uint8_t> src,
-      std::function<void()> success_callback = []() {}) noexcept override;
+      std::function<void()> success_callback = []() {}) noexcept;
 
-  absl::Status Sync() noexcept override;
+  absl::Status Sync() noexcept;
 
-  absl::StatusOr<std::uint64_t> Size() const noexcept override;
+  absl::StatusOr<std::uint64_t> Size() const noexcept;
 
   Store() = delete;
   Store(file_id_t latest_file_id_, ghc::filesystem::path path,
@@ -50,9 +47,9 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   // Latest file id
   file_id_t latest_file_id_;
   // Latest file writer
-  std::unique_ptr<SequentialWriter> latest_writer_;
+  std::unique_ptr<io::SequentialWriter> latest_writer_;
   // Latest file reader
-  std::unique_ptr<RandomAccessReader> latest_reader_;
+  std::unique_ptr<io::RandomAccessReader> latest_reader_;
   absl::Mutex latest_file_lock_;
 
   // Database file path
@@ -63,7 +60,8 @@ class Store : public io::RandomAccessReader, public io::SequentialWriter {
   const std::function<std::string(file_id_t)> filename_fn_;
 
   // All readers
-  std::unordered_map<file_id_t, std::unique_ptr<RandomAccessReader>> readers_;
+  std::unordered_map<file_id_t, std::unique_ptr<io::RandomAccessReader>>
+      readers_;
   absl::Mutex readers_lock_;
 };
 
