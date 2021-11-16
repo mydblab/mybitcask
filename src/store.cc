@@ -46,7 +46,7 @@ absl::Status Store::Append(absl::Span<const uint8_t> src,
     }
     latest_reader_ = *std::move(reader);
   }
-  return latest_writer_->Append(src, success_callback);
+  return latest_writer_->Append(src);
 }
 
 absl::Status Store::Sync() noexcept {
