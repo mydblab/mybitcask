@@ -27,7 +27,7 @@ std::string HintFileName(file_id_t file_id) {
 
 bool ParseFileName(const std::string& filename, file_id_t* file_id,
                    FileType* type) {
-  char suffix[10];
+  char suffix[10]{};
   suffix[9] = '\0';
   if (std::sscanf(filename.c_str(), FILE_NAME_FORMAT, file_id, suffix) < 2) {
     return false;

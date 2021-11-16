@@ -18,8 +18,9 @@ absl::StatusOr<std::size_t> Store::ReadAt(
   return (*r)->ReadAt(pos.offset_in_file, dst);
 }
 
-absl::Status Store::Append(absl::Span<const uint8_t> src,
-                           std::function<void(store::Position)> success_callback) noexcept {
+absl::Status Store::Append(
+    absl::Span<const uint8_t> src,
+    std::function<void(store::Position)> success_callback) noexcept {
   absl::WriterMutexLock l(&latest_file_lock_);
   if (nullptr == latest_writer_) {
     auto writer = io::OpenSequentialFileWriter(filename_fn_(latest_file_id_));
@@ -56,12 +57,12 @@ absl::Status Store::Sync() noexcept {
 
 absl::StatusOr<std::uint64_t> Store::Size() const noexcept { return 0; }
 
-Store::Store(file_id_t latest_file_id, ghc::filesystem::path path,
+Store::Store(const LogFiles& log_files,
              std::function<std::string(file_id_t)> filename_fn,
-             std::size_t dead_bytes_threshold)
-    : latest_file_id_(latest_file_id),
+             std::uint32_t dead_bytes_threshold)
+    : latest_file_id_(log_files.active_log_files().cend()->file_id),
       latest_file_lock_(),
-      path_(path),
+      path_(log_files.path()),
       filename_fn_(filename_fn),
       dead_bytes_threshold_(dead_bytes_threshold),
       latest_writer_(nullptr),
@@ -116,26 +117,39 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   }
 }
 
-std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
-                            std::size_t dead_bytes_threshold) {
-  file_id_t latest_file_id = 0;
+LogFiles::LogFiles(const ghc::filesystem::path& path)
+    : path_(path), hint_files_() {
+  LogFiles::files_vec_type log_files;
   for (auto const& dir_entry : ghc::filesystem::directory_iterator(path)) {
     file_id_t file_id;
     FileType file_type;
-    if (ParseFileName(dir_entry.path().filename().string(), &file_id,
-                      &file_type)) {
-      if (file_type == FileType::kLogFile) {
-        latest_file_id = (std::max)(latest_file_id, file_id);
+    auto filename = dir_entry.path().filename().string();
+    if (ParseFileName(filename, &file_id, &file_type)) {
+      switch (file_type) {
+        case FileType::kLogFile:
+          log_files.emplace_back(LogFiles::Entry{file_id, std::move(filename)});
+          break;
+        case FileType::kHintFile:
+          hint_files_.emplace_back(
+              LogFiles::Entry{file_id, std::move(filename)});
+          break;
+        default:
+          break;
       }
     }
   }
 
-  return std::unique_ptr<Store>(new Store(
-      latest_file_id, path,
-      [&path](file_id_t file_id) {
-        return (path / LogFileName(file_id)).string();
-      },
-      dead_bytes_threshold));
+  auto comp = [](const LogFiles::Entry& a, const LogFiles::Entry& b) {
+    return a.file_id < b.file_id;
+  };
+
+  std::sort(log_files.begin(), log_files.end(), comp);
+  std::sort(hint_files_.begin(), hint_files_.end(), comp);
+
+  active_log_files_ = LogFiles::files_vec_type(
+      log_files.begin(), log_files.begin() + hint_files_.size());
+  older_log_files_ = LogFiles::files_vec_type(
+      log_files.begin() + hint_files_.size(), log_files.end());
 }
 
 }  // namespace store

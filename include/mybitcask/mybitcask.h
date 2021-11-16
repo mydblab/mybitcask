@@ -44,7 +44,6 @@ class MyBitcask {
   absl::Mutex index_rwlock_;
   log::LogReader* log_reader_;
   log::LogWriter* log_writer_;
-  A a_;
 };
 }  // namespace mybitcask
 

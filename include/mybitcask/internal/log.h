@@ -8,8 +8,8 @@
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
 
-#include <functional>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -39,7 +39,7 @@ class LogReader {
   // if read successfully. Else return non-ok status
   //
   // Safe for concurrent use by multiple threads.
-  absl::StatusOr<absl::optional<Entry>> Read(Position pos) noexcept;
+  absl::StatusOr<absl::optional<Entry>> Read(const Position& pos) noexcept;
 
  private:
   store::Store* src_;
@@ -68,7 +68,8 @@ class LogWriter {
   // In other words, delete the record corresponding to this key
   //
   // Safe for concurrent use by multiple threads.
-  absl::Status AppendTombstone(absl::Span<const std::uint8_t> key,
+  absl::Status AppendTombstone(
+      absl::Span<const std::uint8_t> key,
       std::function<void(Position)> success_callback) noexcept;
 
  private:
@@ -99,7 +100,7 @@ class Entry final {
   std::unique_ptr<std::uint8_t[]> ptr_;
 
   friend absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-      Position pos) noexcept;
+      const Position& pos) noexcept;
 };
 
 }  // namespace log

@@ -7,7 +7,9 @@
 #include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
 
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 namespace mybitcask {
 namespace store {
@@ -23,6 +25,29 @@ struct Position {
   std::uint32_t offset_in_file;
 };
 
+class LogFiles {
+ public:
+  struct Entry {
+    mybitcask::file_id_t file_id;
+    std::string filename;
+  };
+  using files_vec_type = std::vector<Entry>;
+  LogFiles(const ghc::filesystem::path& path);
+
+  const ghc::filesystem::path& path() const { return path_; }
+
+  const files_vec_type& active_log_files() const { return active_log_files_; }
+  const files_vec_type& older_log_files() const { return older_log_files_; }
+
+  const files_vec_type& hint_files() const { return hint_files_; }
+
+ private:
+  ghc::filesystem::path path_;
+  files_vec_type active_log_files_;
+  files_vec_type older_log_files_;
+  files_vec_type hint_files_;
+};
+
 class Store {
  public:
   absl::StatusOr<std::size_t> ReadAt(const Position& pos,
@@ -30,16 +55,17 @@ class Store {
 
   absl::Status Append(
       absl::Span<const std::uint8_t> src,
-      std::function<void(Position)> success_callback = [](Position) {}) noexcept;
+      std::function<void(Position)> success_callback = [](Position) {
+      }) noexcept;
 
   absl::Status Sync() noexcept;
 
   absl::StatusOr<std::uint64_t> Size() const noexcept;
 
   Store() = delete;
-  Store(file_id_t latest_file_id_, ghc::filesystem::path path,
+  Store(const LogFiles& log_files,
         std::function<std::string(file_id_t)> filename_fn,
-        std::size_t dead_bytes_threshold);
+        std::uint32_t dead_bytes_threshold);
 
   ~Store() = default;
 
@@ -69,8 +95,6 @@ class Store {
   absl::Mutex readers_lock_;
 };
 
-std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
-                            std::size_t dead_bytes_threshold);
 }  // namespace store
 }  // namespace mybitcask
 

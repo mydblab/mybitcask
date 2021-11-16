@@ -94,7 +94,7 @@ absl::Span<const std::uint8_t> Entry::value() const {
 LogReader::LogReader(store::Store* src, bool checksum)
     : src_(src), checksum_(checksum) {}
 
-absl::StatusOr<absl::optional<Entry>> LogReader::Read(Position pos) noexcept {
+absl::StatusOr<absl::optional<Entry>> LogReader::Read(const Position& pos) noexcept {
   Entry entry(pos.length);
   auto read_len = src_->ReadAt(pos, {entry.raw_ptr(), pos.length});
   if (!read_len.ok()) {
