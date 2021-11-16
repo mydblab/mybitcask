@@ -18,20 +18,13 @@ TEST(IoTest, SequentialWriter) {
     auto filename = tempfile->path();
     auto writer = OpenSequentialFileWriter(std::move(filename));
     ASSERT_TRUE(writer.ok());
-    auto file_size = (*writer)->Size();
-    ASSERT_TRUE(file_size.ok());
-    ASSERT_EQ(*file_size, 0);
-    auto append_status = (*writer)->Append(
+    auto offset = (*writer)->Append(
         {reinterpret_cast<const std::uint8_t*>(test_data.c_str()),
          test_data.size()});
-    ASSERT_TRUE(append_status.ok());
+    ASSERT_TRUE(offset.ok());
+    ASSERT_EQ(*offset, 0);
     auto sync_status = (*writer)->Sync();
     ASSERT_TRUE(sync_status.ok());
-
-    file_size = (*writer)->Size();
-    ASSERT_TRUE(file_size.ok());
-    ASSERT_EQ(*file_size, test_data.size());
-
     // The writer outside the current scope will be destructed
   }
 

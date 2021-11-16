@@ -68,12 +68,13 @@ class SequentialWriter {
   virtual ~SequentialWriter() = default;
 
   // Write `src.size()` bytes of buffer(`src`) into end of this
-  // SequentialWriter. If an error was encountered, a non-OK status will be
-  // returned. If non-OK status is returned then it must be guaranteed that no
-  // bytes were written.
+  // SequentialWriter. returning the offset before append, If an error was
+  // encountered, a non-OK status will be returned. If non-OK status is returned
+  // then it must be guaranteed that no bytes were written.
   //
   // REQUIRES: External synchronization
-  virtual absl::Status Append(absl::Span<const std::uint8_t> src) noexcept = 0;
+  virtual absl::StatusOr<std::uint32_t> Append(
+      absl::Span<const std::uint8_t> src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
