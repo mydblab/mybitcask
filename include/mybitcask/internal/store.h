@@ -60,8 +60,6 @@ class Store {
 
   absl::Status Sync() noexcept;
 
-  absl::StatusOr<std::uint64_t> Size() const noexcept;
-
   Store() = delete;
   Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold);
 
