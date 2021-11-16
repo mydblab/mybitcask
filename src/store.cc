@@ -61,7 +61,10 @@ absl::Status Store::Append(
 
 absl::Status Store::Sync() noexcept {
   absl::ReaderMutexLock latest_file_lock(&latest_file_lock_);
-  return latest_writer_->Sync();
+  if (latest_writer_ != nullptr) {
+    return latest_writer_->Sync();
+  }
+  return absl::OkStatus();
 }
 
 Store::Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold)
@@ -73,12 +76,14 @@ Store::Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold)
       readers_lock_() {
   if (!log_files.active_log_files().empty()) {
     latest_file_id_ = log_files.active_log_files().cend()->file_id;
+  } else if (!log_files.older_log_files().empty()) {
+    latest_file_id_ = log_files.older_log_files().cend()->file_id;
   } else {
     latest_file_id_ = 1;
   }
 }
 
-Store::~Store() { Sync(); }
+Store::~Store() { auto _ = Sync(); }
 
 absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   latest_file_lock_.ReaderLock();

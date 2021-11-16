@@ -7,8 +7,8 @@ namespace store {
 TEST(Store, StoreReaderWriter) {
   auto tmpdir = test::MakeTempDir("mybitcask_store_");
   ASSERT_TRUE(tmpdir.ok());
-  LogFiles log_files(tmpdir->path());
   {
+    LogFiles log_files(tmpdir->path());
     Store store(log_files, 10);
     auto status = store.Append(test::StrSpan("1111"));
     ASSERT_TRUE(status.ok());
@@ -25,6 +25,7 @@ TEST(Store, StoreReaderWriter) {
   }
   // Open from disk again and check persistent data.
   {
+    LogFiles log_files(tmpdir->path());
     Store store(log_files, 10);
     std::uint8_t buf[5]{};
     buf[4] = '\0';
