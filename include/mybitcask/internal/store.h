@@ -63,11 +63,9 @@ class Store {
   absl::StatusOr<std::uint64_t> Size() const noexcept;
 
   Store() = delete;
-  Store(const LogFiles& log_files,
-        std::function<std::string(file_id_t)> filename_fn,
-        std::uint32_t dead_bytes_threshold);
+  Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold);
 
-  ~Store() = default;
+  ~Store();
 
  private:
   // Get io::RandomAccessReader through the file ID,
@@ -86,8 +84,6 @@ class Store {
   ghc::filesystem::path path_;
   // Once the current writer exceeds dead_bytes_threshold_ A new file is created
   const std::size_t dead_bytes_threshold_;
-  // Function to generate file name by file id
-  const std::function<std::string(file_id_t)> filename_fn_;
 
   // All readers
   std::unordered_map<file_id_t, std::unique_ptr<io::RandomAccessReader>>

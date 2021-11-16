@@ -21,9 +21,9 @@ TEST(FilenameTest, Filename) {
 
   for (const auto& filenameInfo : cases) {
     if (filenameInfo.type == FileType::kLogFile) {
-      EXPECT_EQ(LogFileName(filenameInfo.file_id), filenameInfo.filename);
+      EXPECT_EQ(LogFilename(filenameInfo.file_id), filenameInfo.filename);
     } else {
-      EXPECT_EQ(HintFileName(filenameInfo.file_id), filenameInfo.filename);
+      EXPECT_EQ(HintFilename(filenameInfo.file_id), filenameInfo.filename);
     }
   }
 }
@@ -38,7 +38,7 @@ TEST(FilenameTest, Parse) {
   FileType type{};
 
   for (const auto& filenameInfo : cases) {
-    EXPECT_TRUE(ParseFileName(filenameInfo.filename, &file_id, &type));
+    EXPECT_TRUE(ParseFilename(filenameInfo.filename, &file_id, &type));
     EXPECT_EQ(file_id, filenameInfo.file_id);
     EXPECT_EQ(type, filenameInfo.type);
   }
@@ -46,7 +46,7 @@ TEST(FilenameTest, Parse) {
                                      ".log", ".hint",   "100",
                                      "100.", "100.abc", "42949672951.hint"};
   for (const auto& filename : errors) {
-    EXPECT_FALSE(ParseFileName(filename, &file_id, &type));
+    EXPECT_FALSE(ParseFilename(filename, &file_id, &type));
   }
 }
 }  // namespace store

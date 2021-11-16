@@ -6,30 +6,30 @@ namespace mybitcask {
 namespace store {
 const char* const LOG_FILE_SUFFIX = "log";
 const char* const HINT_FILE_SUFFIX = "hint";
-const char* const FILE_NAME_FORMAT = "%u.%s";
+const char* const FILENAME_FORMAT = "%u.%s";
 
-static std::string MakeFileName(file_id_t file_id, const char* suffix) {
+static std::string MakeFilename(file_id_t file_id, const char* suffix) {
   char buf[100];
-  std::snprintf(buf, sizeof(buf), FILE_NAME_FORMAT,
+  std::snprintf(buf, sizeof(buf), FILENAME_FORMAT,
                 static_cast<unsigned int>(file_id), suffix);
   return buf;
 }
 
-std::string LogFileName(file_id_t file_id) {
+std::string LogFilename(file_id_t file_id) {
   assert(file_id >= 0);
-  return MakeFileName(file_id, LOG_FILE_SUFFIX);
+  return MakeFilename(file_id, LOG_FILE_SUFFIX);
 }
 
-std::string HintFileName(file_id_t file_id) {
+std::string HintFilename(file_id_t file_id) {
   assert(file_id >= 0);
-  return MakeFileName(file_id, HINT_FILE_SUFFIX);
+  return MakeFilename(file_id, HINT_FILE_SUFFIX);
 }
 
-bool ParseFileName(const std::string& filename, file_id_t* file_id,
+bool ParseFilename(const std::string& filename, file_id_t* file_id,
                    FileType* type) {
   char suffix[10]{};
   suffix[9] = '\0';
-  if (std::sscanf(filename.c_str(), FILE_NAME_FORMAT, file_id, suffix) < 2) {
+  if (std::sscanf(filename.c_str(), FILENAME_FORMAT, file_id, suffix) < 2) {
     return false;
   }
 

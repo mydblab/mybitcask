@@ -1,4 +1,4 @@
-#include "store.h"
+#include "mybitcask/internal/store.h"
 #include "store_filename.h"
 
 #include <algorithm>
@@ -23,25 +23,24 @@ absl::Status Store::Append(
     std::function<void(store::Position)> success_callback) noexcept {
   absl::WriterMutexLock l(&latest_file_lock_);
   if (nullptr == latest_writer_) {
-    auto writer = io::OpenSequentialFileWriter(filename_fn_(latest_file_id_));
+    auto writer =
+        io::OpenSequentialFileWriter(path_ / LogFilename(latest_file_id_));
     if (!writer.ok()) {
       return absl::Status(writer.status());
     }
     latest_writer_ = *std::move(writer);
   }
   auto file_size = latest_writer_->Size();
-  if (!file_size.ok()) {
-    return absl::Status(file_size.status());
-  }
-  if (*file_size + src.size() > dead_bytes_threshold_) {
+
+  if (file_size + src.size() > dead_bytes_threshold_) {
     // The current file has exceeded the threshold. Create a new data file.
-    auto latest_filename = filename_fn_(++latest_file_id_);
+    auto latest_filename = path_ / LogFilename(++latest_file_id_);
     auto writer = io::OpenSequentialFileWriter(latest_filename);
     if (!writer.ok()) {
       return absl::Status(writer.status());
     }
     latest_writer_ = *std::move(writer);
-    auto reader = io::OpenRandomAccessFileReader(latest_filename);
+    auto reader = io::OpenRandomAccessFileReader(std::move(latest_filename));
     if (!reader.ok()) {
       return absl::Status(reader.status());
     }
@@ -57,17 +56,21 @@ absl::Status Store::Sync() noexcept {
 
 absl::StatusOr<std::uint64_t> Store::Size() const noexcept { return 0; }
 
-Store::Store(const LogFiles& log_files,
-             std::function<std::string(file_id_t)> filename_fn,
-             std::uint32_t dead_bytes_threshold)
-    : latest_file_id_(log_files.active_log_files().cend()->file_id),
-      latest_file_lock_(),
+Store::Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold)
+    : latest_file_lock_(),
       path_(log_files.path()),
-      filename_fn_(filename_fn),
       dead_bytes_threshold_(dead_bytes_threshold),
       latest_writer_(nullptr),
       readers_(),
-      readers_lock_() {}
+      readers_lock_() {
+  if (!log_files.active_log_files().empty()) {
+    latest_file_id_ = log_files.active_log_files().cend()->file_id;
+  } else {
+    latest_file_id_ = 1;
+  }
+}
+
+Store::~Store() { Sync(); }
 
 absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   latest_file_lock_.ReaderLock();
@@ -76,7 +79,7 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
     latest_file_lock_.Lock();
     if (nullptr == latest_reader_) {
       auto reader =
-          io::OpenRandomAccessFileReader(filename_fn_(latest_file_id_));
+          io::OpenRandomAccessFileReader(path_ / LogFilename(latest_file_id_));
       if (!reader.ok()) {
         latest_file_lock_.Unlock();
         return absl::Status(reader.status());
@@ -101,7 +104,8 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
       if (it == readers_.end()) {
         // Read only files can be accessed through MmapRandomAccessFileReader
         // file reader.
-        auto r = io::OpenMmapRandomAccessFileReader(filename_fn_(file_id));
+        auto r =
+            io::OpenMmapRandomAccessFileReader(path_ / LogFilename(file_id));
         if (!r.ok()) {
           readers_lock_.Unlock();
           return absl::Status(r.status());
@@ -124,7 +128,7 @@ LogFiles::LogFiles(const ghc::filesystem::path& path)
     file_id_t file_id;
     FileType file_type;
     auto filename = dir_entry.path().filename().string();
-    if (ParseFileName(filename, &file_id, &file_type)) {
+    if (ParseFilename(filename, &file_id, &file_type)) {
       switch (file_type) {
         case FileType::kLogFile:
           log_files.emplace_back(LogFiles::Entry{file_id, std::move(filename)});
