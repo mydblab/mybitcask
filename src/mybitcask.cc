@@ -4,9 +4,8 @@ namespace mybitcask {
 
 MyBitcask::MyBitcask() : index_(), index_rwlock_() {}
 
-absl::StatusOr<bool> MyBitcask::Get(absl::string_view key,
-                                    std::string* value) noexcept {
-  // TODO: retry
+absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
+                                    int try_num) noexcept {
   auto pos = get_position(key);
   if (!pos.has_value()) {
     return false;
@@ -16,6 +15,9 @@ absl::StatusOr<bool> MyBitcask::Get(absl::string_view key,
     return entry_opt.status();
   }
   if (!entry_opt->has_value()) {
+    if (try_num > 0) {
+      return Get(key, value, try_num - 1);
+    }
     return false;
   }
   auto val = (*entry_opt)->value();

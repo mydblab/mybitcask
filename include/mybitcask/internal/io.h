@@ -73,9 +73,7 @@ class SequentialWriter {
   // bytes were written.
   //
   // REQUIRES: External synchronization
-  virtual absl::Status Append(
-      absl::Span<const std::uint8_t> src,
-      std::function<void()> success_callback = []() {}) noexcept = 0;
+  virtual absl::Status Append(absl::Span<const std::uint8_t> src) noexcept = 0;
 
   // Attempts to sync data to underlying storage. If an error was encountered, a
   // non-OK status will be returned.
