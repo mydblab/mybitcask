@@ -34,8 +34,6 @@ class Store {
 
   absl::Status Sync() noexcept;
 
-  absl::StatusOr<std::uint64_t> Size() const noexcept;
-
   Store() = delete;
   Store(file_id_t latest_file_id_, ghc::filesystem::path path,
         std::function<std::string(file_id_t)> filename_fn,

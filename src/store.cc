@@ -18,8 +18,9 @@ absl::StatusOr<std::size_t> Store::ReadAt(
   return (*r)->ReadAt(pos.offset_in_file, dst);
 }
 
-absl::Status Store::Append(absl::Span<const uint8_t> src,
-                           std::function<void(store::Position)> success_callback) noexcept {
+absl::Status Store::Append(
+    absl::Span<const uint8_t> src,
+    std::function<void(Position)> success_callback) noexcept {
   absl::WriterMutexLock l(&latest_file_lock_);
   if (nullptr == latest_writer_) {
     auto writer = io::OpenSequentialFileWriter(filename_fn_(latest_file_id_));
@@ -46,15 +47,17 @@ absl::Status Store::Append(absl::Span<const uint8_t> src,
     }
     latest_reader_ = *std::move(reader);
   }
-  return latest_writer_->Append(src);
+  auto offset = latest_writer_->Append(src);
+  if (offset.ok()) {
+    success_callback(Position(latest_file_id_, *offset));
+  }
+  return offset.status();
 }
 
 absl::Status Store::Sync() noexcept {
   absl::ReaderMutexLock latest_file_lock(&latest_file_lock_);
   return latest_writer_->Sync();
 }
-
-absl::StatusOr<std::uint64_t> Store::Size() const noexcept { return 0; }
 
 Store::Store(file_id_t latest_file_id, ghc::filesystem::path path,
              std::function<std::string(file_id_t)> filename_fn,
