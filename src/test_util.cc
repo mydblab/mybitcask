@@ -31,8 +31,7 @@ absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
                                       std::string&& suffix,
                                       std::size_t name_length) noexcept {
   auto temp_filename =
-      TempFilename(std::forward<std::string>(prefix),
-                   std::forward<std::string>(suffix), name_length);
+      TempFilename(std::move(prefix), std::move(suffix), name_length);
   if (!temp_filename.ok()) {
     return absl::Status(temp_filename.status());
   }
@@ -42,7 +41,7 @@ absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
 absl::StatusOr<TempFile> MakeTempDir(std::string&& prefix,
                                      std::size_t name_length) noexcept {
   auto temp_dirname =
-      TempFilename(std::forward<std::string>(prefix), "", name_length);
+      TempFilename(std::move(prefix), "", name_length);
   if (!temp_dirname.ok()) {
     return absl::Status(temp_dirname.status());
   }

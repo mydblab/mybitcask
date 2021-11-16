@@ -32,8 +32,8 @@ class FStreamSequentialWriter : public SequentialWriter {
   std::ofstream file_;
   const ghc::filesystem::path filename_;
 
-  friend absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
-      ghc::filesystem::path&& filename) noexcept;
+  friend absl::StatusOr<std::unique_ptr<SequentialWriter>>
+  OpenSequentialFileWriter(ghc::filesystem::path&& filename) noexcept;
 };
 
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
@@ -42,8 +42,8 @@ absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
   if (!file.is_open()) {
     return absl::InternalError(kErrOpenFailed);
   }
-  return std::unique_ptr<FStreamSequentialWriter>(new FStreamSequentialWriter(
-      std::forward<ghc::filesystem::path>(filename), std::move(file)));
+  return std::unique_ptr<FStreamSequentialWriter>(
+      new FStreamSequentialWriter(std::move(filename), std::move(file)));
 }
 
 absl::StatusOr<std::size_t> GetFileSize(

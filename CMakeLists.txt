@@ -10,6 +10,8 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Crc32c REQUIRED)
 find_package(AbseilCpp REQUIRED)
 find_package(GhcFilesystem REQUIRED)
+find_package(Replxx REQUIRED)
+find_package(Clipp REQUIRED)
 
 # mybitcask core library
 add_library(${PROJECT_NAME}
@@ -37,6 +39,20 @@ target_link_libraries(${PROJECT_NAME}
   absl::endian
   ghc_filesystem
 )
+
+# mykv
+add_executable(
+  mykv
+  mykv/mykv.cc
+)
+
+target_link_libraries(
+  mykv
+  ${PROJECT_NAME}
+  clipp::clipp
+  replxx::replxx
+)
+
 
 # google test
 find_package(Gtest)

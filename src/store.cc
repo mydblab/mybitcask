@@ -10,7 +10,6 @@ absl::StatusOr<std::size_t> Store::ReadAt(
     uint64_t offset, absl::Span<std::uint8_t> dst) noexcept {
   // Convert absolute offset to position (file_id + offset in file), and the
   // fixed size of a single file is dead_bytes_threshold_ bytes.
-
   auto file_id = offset / dead_bytes_threshold_;
   auto offset_in_file = offset % dead_bytes_threshold_;
 
@@ -120,7 +119,7 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
           readers_lock_.Unlock();
           return absl::Status(r.status());
         }
-        it = readers_.insert({file_id, *std::move(r)}).first;
+        it = readers_.emplace(std::move(file_id), *std::move(r)).first;
       }
       readers_lock_.Unlock();
     } else {
@@ -137,7 +136,8 @@ std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
   for (auto const& dir_entry : ghc::filesystem::directory_iterator(path)) {
     file_id_t file_id;
     FileType file_type;
-    if (ParseFileName(dir_entry.path().filename().string(), &file_id, &file_type)) {
+    if (ParseFileName(dir_entry.path().filename().string(), &file_id,
+                      &file_type)) {
       if (file_type == FileType::kLogFile) {
         latest_file_id = (std::max)(latest_file_id, file_id);
       }
@@ -146,7 +146,9 @@ std::unique_ptr<Store> Open(const ghc::filesystem::path& path,
 
   return std::unique_ptr<Store>(new Store(
       latest_file_id, path,
-      [&path](file_id_t file_id) { return (path / LogFileName(file_id)).string(); },
+      [&path](file_id_t file_id) {
+        return (path / LogFileName(file_id)).string();
+      },
       dead_bytes_threshold));
 }
 
