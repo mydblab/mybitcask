@@ -80,7 +80,7 @@ class Header final {
   std::uint8_t* const data_;
 };
 
-Entry::Entry(std::size_t length)
+Entry::Entry(std::uint32_t length)
     : ptr_(new uint8_t[length]), key_size_(0), value_size_(0) {}
 
 absl::Span<const std::uint8_t> Entry::key() const {

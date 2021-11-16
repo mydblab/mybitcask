@@ -82,7 +82,7 @@ class LogWriter {
 
 class Entry final {
  public:
-  Entry(std::size_t length);
+  Entry(std::uint32_t length);
 
   absl::Span<const std::uint8_t> key() const;
 

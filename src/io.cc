@@ -23,6 +23,8 @@ class FStreamSequentialWriter : public SequentialWriter {
     return absl::OkStatus();
   }
 
+  std::uint32_t Size() const noexcept override { return current_offset_; }
+
  private:
   FStreamSequentialWriter(ghc::filesystem::path&& filename,
                           std::ofstream&& file, std::uint32_t current_offset)
