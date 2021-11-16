@@ -1,5 +1,4 @@
 #include "store_filename.h"
-
 #include "gtest/gtest.h"
 
 #include <vector>
@@ -13,7 +12,7 @@ struct FilenameInfo {
 };
 
 TEST(FilenameTest, Filename) {
- 
+
   std::vector<FilenameInfo> cases = {
       {"100.log", 100, FileType::kLogFile},
       {"0.log", 0, FileType::kLogFile},
