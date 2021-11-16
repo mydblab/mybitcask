@@ -1,7 +1,8 @@
 #ifndef MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 #define MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 
-#include "io.h"
+#include "mybitcask/mybitcask.h"
+#include "store.h"
 
 #include "absl/status/statusor.h"
 #include "absl/types/optional.h"
@@ -28,21 +29,11 @@ const std::string kErrBadValueLength =
 
 class Entry;
 
-struct Position {
-  std::uint64_t offset;
-  std::size_t length;
-};
-
 class LogReader {
  public:
   // Create LogReader
   // If "checksum" is true, verify checksums if available.
-  explicit LogReader(std::unique_ptr<io::RandomAccessReader>&& src,
-                     bool checksum);
-
-  // Initializes this LogReader. it must be called bfore reading log entry.
-  // Returns ok status if init successfully. Else return non-ok status
-  absl::Status Init() noexcept;
+  LogReader(store::Store* src, bool checksum);
 
   // Read a log entry at the specified position. Returns ok status and log entry
   // if read successfully. Else return non-ok status
@@ -51,17 +42,13 @@ class LogReader {
   absl::StatusOr<absl::optional<Entry>> Read(Position pos) noexcept;
 
  private:
-  const std::unique_ptr<io::RandomAccessReader> src_;
+  store::Store* src_;
   const bool checksum_;
 };
 
 class LogWriter {
  public:
-  explicit LogWriter(std::unique_ptr<io::SequentialWriter>&& dest);
-
-  // Initializes this LogReader. it must be called bfore reading log entry.
-  // Returns ok status if init successfully. Else return non-ok status
-  absl::Status Init() noexcept;
+  explicit LogWriter(store::Store* dest);
 
   // Add an log entry to the end of the underlying dest. Returns ok status and
   // the offset and length of the added entry if append successfully. Else
@@ -89,9 +76,7 @@ class LogWriter {
       absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
       std::function<void(Position)> success_callback) noexcept;
 
-  std::unique_ptr<io::SequentialWriter> dest_;
-  std::uint64_t last_append_offset_;
-  std::mutex append_lock_;
+  store::Store* dest_;
 };
 
 class Entry final {

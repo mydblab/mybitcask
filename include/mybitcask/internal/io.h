@@ -80,9 +80,6 @@ class SequentialWriter {
   //
   // REQUIRES: External synchronization
   virtual absl::Status Sync() noexcept = 0;
-
-  // Returns the current size of this writer.
-  virtual absl::StatusOr<std::uint64_t> Size() const noexcept = 0;
 };
 
 // Open a file as SequentialWriter

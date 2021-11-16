@@ -13,9 +13,18 @@
 
 namespace mybitcask {
 
+using file_id_t = std::uint32_t;
+
+struct Position {
+  file_id_t file_id;
+  std::uint32_t offset_in_file;
+  std::uint32_t length;
+};
+
 class MyBitcask {
  public:
   MyBitcask();
+
   // If the database contains an entry for `key` store the
   // corresponding value in `value` and return true
   // If there is no entry for "key" leave `value` unchanged and return false
@@ -29,17 +38,13 @@ class MyBitcask {
   absl::Status Delete(const std::string& key) noexcept;
 
  private:
-  struct Position {
-    std::uint64_t offset;
-    std::size_t length;
-  };
-
   absl::optional<Position> get_position(absl::string_view key);
 
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
   log::LogReader* log_reader_;
   log::LogWriter* log_writer_;
+  A a_;
 };
 }  // namespace mybitcask
 

@@ -19,7 +19,7 @@ absl::StatusOr<std::size_t> Store::ReadAt(
 }
 
 absl::Status Store::Append(absl::Span<const uint8_t> src,
-                           std::function<void()> success_callback) noexcept {
+                           std::function<void(store::Position)> success_callback) noexcept {
   absl::WriterMutexLock l(&latest_file_lock_);
   if (nullptr == latest_writer_) {
     auto writer = io::OpenSequentialFileWriter(filename_fn_(latest_file_id_));

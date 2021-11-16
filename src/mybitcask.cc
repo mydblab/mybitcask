@@ -2,7 +2,7 @@
 
 namespace mybitcask {
 
-MyBitcask::MyBitcask() : index_(), index_rwlock_() {}
+MyBitcask::MyBitcask():index_(), index_rwlock_() {}
 
 absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
                                     int try_num) noexcept {

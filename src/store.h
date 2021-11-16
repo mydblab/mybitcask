@@ -2,6 +2,7 @@
 #define MYBITCASK_SRC_STORE_H_
 
 #include "mybitcask/internal/io.h"
+#include "mybitcask/mybitcask.h"
 
 #include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
@@ -11,12 +12,15 @@
 namespace mybitcask {
 namespace store {
 
-using file_id_t = uint32_t;
-
 // Position represents a position in db files.
 struct Position {
+  Position(file_id_t file_id, std::uint32_t offset_in_file)
+      : file_id(file_id), offset_in_file(offset_in_file) {}
+  Position(const mybitcask::Position& pos)
+      : file_id(pos.file_id), offset_in_file(pos.offset_in_file) {}
+
   file_id_t file_id;
-  uint64_t offset_in_file;
+  std::uint32_t offset_in_file;
 };
 
 class Store {
@@ -26,7 +30,7 @@ class Store {
 
   absl::Status Append(
       absl::Span<const std::uint8_t> src,
-      std::function<void()> success_callback = []() {}) noexcept;
+      std::function<void(Position)> success_callback = [](Position) {}) noexcept;
 
   absl::Status Sync() noexcept;
 

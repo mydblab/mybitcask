@@ -91,15 +91,12 @@ absl::Span<const std::uint8_t> Entry::value() const {
   return {raw_ptr() + kHeaderLen + key_size_, value_size_};
 }
 
-LogReader::LogReader(std::unique_ptr<io::RandomAccessReader>&& src,
-                     bool checksum)
-    : src_(std::move(src)), checksum_(checksum) {}
-
-absl::Status LogReader::Init() noexcept { return absl::OkStatus(); }
+LogReader::LogReader(store::Store* src, bool checksum)
+    : src_(src), checksum_(checksum) {}
 
 absl::StatusOr<absl::optional<Entry>> LogReader::Read(Position pos) noexcept {
   Entry entry(pos.length);
-  auto read_len = src_->ReadAt(pos.offset, {entry.raw_ptr(), pos.length});
+  auto read_len = src_->ReadAt(pos, {entry.raw_ptr(), pos.length});
   if (!read_len.ok()) {
     return read_len.status();
   }
@@ -124,17 +121,7 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(Position pos) noexcept {
   return entry;
 }
 
-LogWriter::LogWriter(std::unique_ptr<io::SequentialWriter>&& dest)
-    : dest_(std::move(dest)), last_append_offset_(0), append_lock_() {}
-
-absl::Status LogWriter::Init() noexcept {
-  auto size = dest_->Size();
-  if (!size.ok()) {
-    return size.status();
-  }
-  last_append_offset_ = *size;
-  return absl::OkStatus();
-}
+LogWriter::LogWriter(store::Store* dest) : dest_(dest) {}
 
 absl::Status LogWriter::AppendTombstone(
     absl::Span<const std::uint8_t> key,
@@ -161,7 +148,7 @@ absl::Status LogWriter::AppendInner(
     return absl::InternalError(kErrBadValueLength);
   }
 
-  std::size_t buf_len = kHeaderLen + key.size() + value.size();
+  std::uint32_t buf_len = kHeaderLen + key.size() + value.size();
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
   Header header(buf.get());
@@ -177,11 +164,9 @@ absl::Status LogWriter::AppendInner(
 
   header.set_crc32(header.calc_actual_crc(&buf[kHeaderLen]));
 
-  const std::lock_guard<std::mutex> lock(append_lock_);
   auto status = dest_->Append(
-      {buf.get(), buf_len}, [offset_to_be_appended = last_append_offset_,
-                             buf_len, &success_callback]() {
-        success_callback(Position{offset_to_be_appended, buf_len});
+      {buf.get(), buf_len}, [=, &success_callback](store::Position pos) {
+        success_callback(Position{pos.file_id, pos.offset_in_file, buf_len});
       });
   if (!status.ok()) {
     return status;
@@ -190,7 +175,6 @@ absl::Status LogWriter::AppendInner(
   if (!status.ok()) {
     return status;
   }
-  last_append_offset_ += buf_len;
   return absl::OkStatus();
 }
 
