@@ -8,24 +8,24 @@ const char* const LOG_FILE_SUFFIX = "log";
 const char* const HINT_FILE_SUFFIX = "hint";
 const char* const FILENAME_FORMAT = "%u.%s";
 
-static std::string MakeFilename(file_id_t file_id, const char* suffix) {
+static std::string MakeFilename(std::uint32_t file_id, const char* suffix) {
   char buf[100];
   std::snprintf(buf, sizeof(buf), FILENAME_FORMAT,
                 static_cast<unsigned int>(file_id), suffix);
   return buf;
 }
 
-std::string LogFilename(file_id_t file_id) {
+std::string LogFilename(std::uint32_t file_id) {
   assert(file_id >= 0);
   return MakeFilename(file_id, LOG_FILE_SUFFIX);
 }
 
-std::string HintFilename(file_id_t file_id) {
+std::string HintFilename(std::uint32_t file_id) {
   assert(file_id >= 0);
   return MakeFilename(file_id, HINT_FILE_SUFFIX);
 }
 
-bool ParseFilename(const std::string& filename, file_id_t* file_id,
+bool ParseFilename(const std::string& filename, std::uint32_t* file_id,
                    FileType* type) {
   char suffix[10]{};
   suffix[9] = '\0';
@@ -33,7 +33,7 @@ bool ParseFilename(const std::string& filename, file_id_t* file_id,
     return false;
   }
 
-  // The maximum number of digits in io::file_id_t cannot exceed 10
+  // The maximum number of digits in std::uint32_t cannot exceed 10
   if (filename.size() - std::strlen(suffix) - 1 > 10) {
     return false;
   }

@@ -1,8 +1,7 @@
 #ifndef MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 #define MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 
-#include "mybitcask/mybitcask.h"
-#include "store.h"
+#include "mybitcask/internal/store.h"
 
 #include "absl/status/statusor.h"
 #include "absl/types/optional.h"
@@ -16,6 +15,9 @@
 #include <vector>
 
 namespace mybitcask {
+
+struct Position;
+
 namespace log {
 
 // kErrBadEntry is an error. that indicates log entry is invalid.

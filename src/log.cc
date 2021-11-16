@@ -1,3 +1,4 @@
+#include "mybitcask/mybitcask.h"
 #include "mybitcask/internal/log.h"
 #include "absl/base/internal/endian.h"
 #include "assert.h"
@@ -94,7 +95,8 @@ absl::Span<const std::uint8_t> Entry::value() const {
 LogReader::LogReader(store::Store* src, bool checksum)
     : src_(src), checksum_(checksum) {}
 
-absl::StatusOr<absl::optional<Entry>> LogReader::Read(const Position& pos) noexcept {
+absl::StatusOr<absl::optional<Entry>> LogReader::Read(
+    const Position& pos) noexcept {
   Entry entry(pos.length);
   auto read_len = src_->ReadAt(pos, {entry.raw_ptr(), pos.length});
   if (!read_len.ok()) {
@@ -148,7 +150,8 @@ absl::Status LogWriter::AppendInner(
     return absl::InternalError(kErrBadValueLength);
   }
 
-  std::uint32_t buf_len = kHeaderLen + key.size() + value.size();
+  std::uint32_t buf_len = kHeaderLen + static_cast<std::uint32_t>(key.size()) +
+                          static_cast<std::uint32_t>(value.size());
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
   Header header(buf.get());

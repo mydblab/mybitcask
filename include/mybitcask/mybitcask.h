@@ -13,10 +13,8 @@
 
 namespace mybitcask {
 
-using file_id_t = std::uint32_t;
-
 struct Position {
-  file_id_t file_id;
+  std::uint32_t file_id;
   std::uint32_t offset_in_file;
   std::uint32_t length;
 };

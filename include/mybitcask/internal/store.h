@@ -1,8 +1,7 @@
-#ifndef MYBITCASK_SRC_STORE_H_
-#define MYBITCASK_SRC_STORE_H_
+#ifndef MYBITCASK_INUCLDE_INTERNAL_STORE_H_
+#define MYBITCASK_INUCLDE_INTERNAL_STORE_H_
 
 #include "mybitcask/internal/io.h"
-#include "mybitcask/mybitcask.h"
 
 #include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
@@ -12,14 +11,17 @@
 #include <vector>
 
 namespace mybitcask {
+
+struct Position;
+
 namespace store {
+
+using file_id_t = std::uint32_t;
 
 // Position represents a position in db files.
 struct Position {
-  Position(file_id_t file_id, std::uint32_t offset_in_file)
-      : file_id(file_id), offset_in_file(offset_in_file) {}
-  Position(const mybitcask::Position& pos)
-      : file_id(pos.file_id), offset_in_file(pos.offset_in_file) {}
+  Position(file_id_t file_id, std::uint32_t offset_in_file);
+  Position(const mybitcask::Position& pos);
 
   file_id_t file_id;
   std::uint32_t offset_in_file;
@@ -28,7 +30,7 @@ struct Position {
 class LogFiles {
  public:
   struct Entry {
-    mybitcask::file_id_t file_id;
+    file_id_t file_id;
     std::string filename;
   };
   using files_vec_type = std::vector<Entry>;
@@ -92,4 +94,4 @@ class Store {
 }  // namespace store
 }  // namespace mybitcask
 
-#endif  // MYBITCASK_SRC_STORE_H_
+#endif  // MYBITCASK_INUCLDE_INTERNAL_STORE_H_

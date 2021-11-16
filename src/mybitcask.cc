@@ -10,7 +10,7 @@ absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
   if (!pos.has_value()) {
     return false;
   }
-  auto entry_opt = log_reader_->Read(pos);
+  auto entry_opt = log_reader_->Read(*pos);
   if (!entry_opt.ok()) {
     return entry_opt.status();
   }

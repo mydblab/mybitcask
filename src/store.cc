@@ -6,6 +6,11 @@
 namespace mybitcask {
 namespace store {
 
+Position::Position(file_id_t file_id, std::uint32_t offset_in_file)
+    : file_id(file_id), offset_in_file(offset_in_file) {}
+Position::Position(const mybitcask::Position& pos)
+    : file_id(pos.file_id), offset_in_file(pos.offset_in_file) {}
+
 absl::StatusOr<std::size_t> Store::ReadAt(
     const Position& pos, absl::Span<std::uint8_t> dst) noexcept {
   auto r = reader(pos.file_id);
@@ -35,7 +40,8 @@ absl::Status Store::Append(
   if (file_size + src.size() > dead_bytes_threshold_) {
     // The current file has exceeded the threshold. Create a new data file.
     auto latest_filename = path_ / LogFilename(++latest_file_id_);
-    auto writer = io::OpenSequentialFileWriter(latest_filename);
+    auto writer =
+        io::OpenSequentialFileWriter(ghc::filesystem::path(latest_filename));
     if (!writer.ok()) {
       return absl::Status(writer.status());
     }
