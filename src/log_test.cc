@@ -14,15 +14,10 @@
 namespace mybitcask {
 namespace log {
 
-store::Store&& create_store(const ghc::filesystem::path& tempdir) {
-  store::LogFiles log_files(tempdir);
-  return store::Store(log_files, 128 * 1024 * 1024);
-}
-
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  auto&& store = create_store(tmpdir->path());
+  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
   LogReader log_reader(&store, false);
   LogWriter log_writer(&store);
 
@@ -73,7 +68,7 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
 TEST(LogReaderTest, ReadEmptyFile) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  auto&& store = create_store(tmpdir->path());
+  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
   LogReader log_reader(&store, false);
 
   for (const Position& pos : {Position{1, 0, 100}, Position{1, 1, 100},
@@ -108,7 +103,7 @@ class StoreUtil {
     offset_ += 4;
   }
   void Push(absl::Span<const std::uint8_t> data) {
-    store_->Append(data, [](store::Position) {});
+    auto _ = store_->Append(data, [](store::Position) {});
   }
 
   std::uint32_t offset() const { return offset_; }
@@ -121,7 +116,7 @@ class StoreUtil {
 TEST(LogWriterTest, ReadWrongEntry) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  auto&& store = create_store(tmpdir->path());
+  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
   LogReader log_reader(&store, true);
 
   StoreUtil w(&store);
@@ -133,7 +128,8 @@ TEST(LogWriterTest, ReadWrongEntry) {
   w.Push(test::StrSpan("a"));  // key
   w.Push(test::StrSpan("b"));  // value
   auto offset = w.offset();
-  store.Sync();
+  auto status = store.Sync();
+  ASSERT_TRUE(status.ok());
   auto entry_opt = log_reader.Read(Position{1, 0, offset});
   EXPECT_FALSE(entry_opt.ok()) << "read an entry with bad crc should fail";
   EXPECT_EQ(entry_opt.status().message(), kErrBadEntry)
@@ -144,7 +140,8 @@ TEST(LogWriterTest, ReadWrongEntry) {
   w.PushU16(0xFFFF);           // value_sz, kTombstone
   w.Push(test::StrSpan("a"));  // key
   w.Push(test::StrSpan(""));   // value
-  store.Sync();
+  status = store.Sync();
+  ASSERT_TRUE(status.ok());
   entry_opt = log_reader.Read(Position{1, offset, w.offset() - offset});
   offset = w.offset();
   EXPECT_FALSE(entry_opt.ok()) << "read an entry with bad crc should fail";
@@ -160,7 +157,8 @@ TEST(LogWriterTest, ReadWrongEntry) {
   };
   w.PushU32(crc32c::Crc32c(data, 5));
   w.Push(data);
-  store.Sync();
+  status = store.Sync();
+  ASSERT_TRUE(status.ok());
   entry_opt = log_reader.Read(Position{1, offset, w.offset() - offset});
   EXPECT_FALSE(entry_opt.ok())
       << "read an entry with incorrect key/value length should fail";
@@ -172,7 +170,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
 TEST(LogWriterTest, AppendWithWrongKVLength) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  auto&& store = create_store(tmpdir->path());
+  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
   LogWriter log_writer(&store);
 
   // Append entry with empty key
