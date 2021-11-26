@@ -20,6 +20,7 @@ add_library(${PROJECT_NAME}
   src/store_filename.cc
   src/store.cc
   src/mybitcask.cc
+  src/store_hint.cc
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)

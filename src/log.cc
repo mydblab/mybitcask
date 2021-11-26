@@ -1,8 +1,8 @@
-#include "mybitcask/mybitcask.h"
 #include "mybitcask/internal/log.h"
 #include "absl/base/internal/endian.h"
 #include "assert.h"
 #include "crc32c/crc32c.h"
+#include "mybitcask/mybitcask.h"
 
 #include <cstring>
 
@@ -94,6 +94,41 @@ absl::Span<const std::uint8_t> Entry::value() const {
 
 LogReader::LogReader(store::Store* src, bool checksum)
     : src_(src), checksum_(checksum) {}
+
+absl::StatusOr<bool> LogReader::Read(const Position& pos,
+                                     std::uint32_t key_length,
+                                     std::uint8_t* value) noexcept {
+  if (checksum_) {
+    auto entry = Read(pos);
+    if (!entry.ok()) {
+      return entry.status();
+    }
+    if (!entry->has_value()) {
+      return false;
+    }
+    auto entry_val = (*entry)->value();
+    std::memcpy(value, entry_val.data(), entry_val.length());
+    return true;
+  }
+
+  auto dst =
+      absl::Span<std::uint8_t>(value, pos.length - kHeaderLen - key_length);
+  auto read_len =
+      src_->ReadAt(store::Position(pos.file_id, pos.offset_in_file +
+                                                    kHeaderLen + key_length),
+                   dst);
+  if (!read_len.ok()) {
+    return read_len.status();
+  }
+  if (*read_len == 0) {
+    // entry does not exist
+    return false;
+  }
+  if (*read_len != dst.length()) {
+    return absl::InternalError(kErrBadEntry);
+  }
+  return true;
+}
 
 absl::StatusOr<absl::optional<Entry>> LogReader::Read(
     const Position& pos) noexcept {

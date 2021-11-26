@@ -1,7 +1,7 @@
 #ifndef MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 #define MYBITCASK_INCLUDE_INTERNAL_LOG_H_
 
-#include "mybitcask/internal/store.h"
+#include "store.h"
 
 #include "absl/status/statusor.h"
 #include "absl/types/optional.h"
@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -33,23 +32,38 @@ class Entry;
 
 class LogReader {
  public:
+  LogReader() = default;
+
   // Create LogReader
   // If "checksum" is true, verify checksums if available.
   LogReader(store::Store* src, bool checksum);
 
-  // Read a log entry at the specified position. Returns ok status and log entry
-  // if read successfully. Else return non-ok status
+  // Read a log entry at the specified position.
+  // Return true and store value part of entry to `value` if read successfully.
+  // Else return false.
+  // If checksum is not required, write the corresponding value directly to
+  // `value`. Else read out the entire entry first, and then copy the value part
+  // of the entry to value.
+  //
+  // Safe for concurrent use by multiple threads.
+  absl::StatusOr<bool> Read(const Position& pos, std::uint32_t key_length,
+                            std::uint8_t* value) noexcept;
+
+  // Read a log entry a t the specified position. Returns ok status and log
+  // entry if read successfully. Else return non-ok status
   //
   // Safe for concurrent use by multiple threads.
   absl::StatusOr<absl::optional<Entry>> Read(const Position& pos) noexcept;
 
  private:
   store::Store* src_;
-  const bool checksum_;
+  bool checksum_;
 };
 
 class LogWriter {
  public:
+  LogWriter() = default;
+
   explicit LogWriter(store::Store* dest);
 
   // Add an log entry to the end of the underlying dest. Returns ok status and

@@ -6,6 +6,7 @@
 #include "crc32c/crc32c.h"
 #include "gtest/gtest.h"
 #include "test_util.h"
+#include "ghc/filesystem.hpp"
 
 #include <memory>
 #include <random>

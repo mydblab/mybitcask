@@ -2,14 +2,17 @@
 #define MYBITCASK_INCLUDE_MYBITCASK_H_
 
 #include "internal/log.h"
+#include "internal/store.h"
 
 #include "absl/container/btree_map.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/optional.h"
+#include "ghc/filesystem.hpp"
 
 #include <cstdint>
+#include <memory>
 
 namespace mybitcask {
 
@@ -21,7 +24,8 @@ struct Position {
 
 class MyBitcask {
  public:
-  MyBitcask();
+  MyBitcask(const ghc::filesystem::path& data_dir,
+            std::uint32_t dead_bytes_threshold, bool checksum);
 
   // If the database contains an entry for `key` store the
   // corresponding value in `value` and return true
@@ -40,8 +44,9 @@ class MyBitcask {
 
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
-  log::LogReader* log_reader_;
-  log::LogWriter* log_writer_;
+  std::unique_ptr<store::Store> store_;
+  log::LogReader log_reader_;
+  log::LogWriter log_writer_;
 };
 }  // namespace mybitcask
 

@@ -1,5 +1,6 @@
 #include "mybitcask/internal/store.h"
 #include "store_filename.h"
+#include "store_hint.h"
 
 #include <algorithm>
 
@@ -10,6 +11,55 @@ Position::Position(file_id_t file_id, std::uint32_t offset_in_file)
     : file_id(file_id), offset_in_file(offset_in_file) {}
 Position::Position(const mybitcask::Position& pos)
     : file_id(pos.file_id), offset_in_file(pos.offset_in_file) {}
+
+LogFiles::LogFiles(const ghc::filesystem::path& path)
+    : path_(path), hint_files_() {
+  std::vector<file_id_t> log_files;
+  for (auto const& dir_entry : ghc::filesystem::directory_iterator(path)) {
+    file_id_t file_id;
+    FileType file_type;
+    auto filename = dir_entry.path().filename().string();
+    if (ParseFilename(filename, &file_id, &file_type)) {
+      switch (file_type) {
+        case FileType::kLogFile:
+          log_files.push_back(file_id);
+          break;
+        case FileType::kHintFile:
+          hint_files_.push_back(file_id);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  std::sort(log_files.begin(), log_files.end());
+  std::sort(hint_files_.begin(), hint_files_.end());
+
+  active_log_files_ = std::vector<file_id_t>(
+      log_files.begin(), log_files.begin() + hint_files_.size());
+  older_log_files_ = std::vector<file_id_t>(
+      log_files.begin() + hint_files_.size(), log_files.end());
+}
+
+template <typename T>
+absl::StatusOr<T> LogFiles::FoldKeys(
+    T init, std::function<T(T&, LogFiles::KeyEntry&&)> f) const noexcept {
+  auto acc = std::move(init);
+  for (auto& hint_file_id : hint_files()) {
+    auto status = hint::FoldKeys(
+        path() / HintFilename(hint_file_id), void,
+        [&](void& _, hint::Entry&& hint_entry) {
+          f(acc,
+            LogFiles::KeyEntry{hint_file_id, hint_entry.offset,
+                               hint_entry.entry_sz, std::move(hint_entry.key)})
+        });
+    if (!status.ok()) {
+      return status;
+    }
+  }
+  return acc;
+}
 
 absl::StatusOr<std::size_t> Store::ReadAt(
     const Position& pos, absl::Span<std::uint8_t> dst) noexcept {
@@ -26,7 +76,7 @@ absl::StatusOr<std::size_t> Store::ReadAt(
 absl::Status Store::Append(
     absl::Span<const uint8_t> src,
     std::function<void(Position)> success_callback) noexcept {
-  absl::WriterMutexLock l(&latest_file_lock_);
+  absl::WriterMutexLock guard(&latest_file_lock_);
   if (nullptr == latest_writer_) {
     auto writer =
         io::OpenSequentialFileWriter(path_ / LogFilename(latest_file_id_));
@@ -75,9 +125,9 @@ Store::Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold)
       readers_(),
       readers_lock_() {
   if (!log_files.active_log_files().empty()) {
-    latest_file_id_ = log_files.active_log_files().cend()->file_id;
+    latest_file_id_ = *log_files.active_log_files().cend();
   } else if (!log_files.older_log_files().empty()) {
-    latest_file_id_ = log_files.older_log_files().cend()->file_id;
+    latest_file_id_ = *log_files.older_log_files().cend();
   } else {
     latest_file_id_ = 1;
   }
@@ -132,41 +182,6 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
 
     return (*it).second.get();
   }
-}
-
-LogFiles::LogFiles(const ghc::filesystem::path& path)
-    : path_(path), hint_files_() {
-  LogFiles::files_vec_type log_files;
-  for (auto const& dir_entry : ghc::filesystem::directory_iterator(path)) {
-    file_id_t file_id;
-    FileType file_type;
-    auto filename = dir_entry.path().filename().string();
-    if (ParseFilename(filename, &file_id, &file_type)) {
-      switch (file_type) {
-        case FileType::kLogFile:
-          log_files.emplace_back(LogFiles::Entry{file_id, std::move(filename)});
-          break;
-        case FileType::kHintFile:
-          hint_files_.emplace_back(
-              LogFiles::Entry{file_id, std::move(filename)});
-          break;
-        default:
-          break;
-      }
-    }
-  }
-
-  auto comp = [](const LogFiles::Entry& a, const LogFiles::Entry& b) {
-    return a.file_id < b.file_id;
-  };
-
-  std::sort(log_files.begin(), log_files.end(), comp);
-  std::sort(hint_files_.begin(), hint_files_.end(), comp);
-
-  active_log_files_ = LogFiles::files_vec_type(
-      log_files.begin(), log_files.begin() + hint_files_.size());
-  older_log_files_ = LogFiles::files_vec_type(
-      log_files.begin() + hint_files_.size(), log_files.end());
 }
 
 }  // namespace store

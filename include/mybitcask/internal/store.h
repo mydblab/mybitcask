@@ -1,8 +1,10 @@
 #ifndef MYBITCASK_INUCLDE_INTERNAL_STORE_H_
 #define MYBITCASK_INUCLDE_INTERNAL_STORE_H_
 
-#include "mybitcask/internal/io.h"
+#include "io.h"
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
 #include "ghc/filesystem.hpp"
 
@@ -29,25 +31,35 @@ struct Position {
 
 class LogFiles {
  public:
-  struct Entry {
+  struct KeyEntry {
     file_id_t file_id;
-    std::string filename;
+    std::uint32_t offset;
+    std::uint32_t length;
+    std::vector<std::uint8_t> key;
   };
-  using files_vec_type = std::vector<Entry>;
+
   LogFiles(const ghc::filesystem::path& path);
 
   const ghc::filesystem::path& path() const { return path_; }
 
-  const files_vec_type& active_log_files() const { return active_log_files_; }
-  const files_vec_type& older_log_files() const { return older_log_files_; }
+  const std::vector<file_id_t>& active_log_files() const {
+    return active_log_files_;
+  }
+  const std::vector<file_id_t>& older_log_files() const {
+    return older_log_files_;
+  }
 
-  const files_vec_type& hint_files() const { return hint_files_; }
+  const std::vector<file_id_t>& hint_files() const { return hint_files_; }
+
+  template <typename T>
+  absl::StatusOr<T> FoldKeys(T init,
+                             std::function<T(T&, KeyEntry&&)> f) const noexcept;
 
  private:
   ghc::filesystem::path path_;
-  files_vec_type active_log_files_;
-  files_vec_type older_log_files_;
-  files_vec_type hint_files_;
+  std::vector<file_id_t> active_log_files_;
+  std::vector<file_id_t> older_log_files_;
+  std::vector<file_id_t> hint_files_;
 };
 
 class Store {
