@@ -42,17 +42,20 @@ LogFiles::LogFiles(const ghc::filesystem::path& path)
       log_files.begin() + hint_files_.size(), log_files.end());
 }
 
+struct Void {};
+
 template <typename T>
 absl::StatusOr<T> LogFiles::FoldKeys(
     T init, std::function<T(T&&, LogFiles::KeyEntry&&)> f) const noexcept {
   auto acc = std::move(init);
   for (auto& hint_file_id : hint_files()) {
     auto status = hint::FoldKeys(
-        path() / HintFilename(hint_file_id), nullptr,
-        [&](void& _, hint::Entry&& hint_entry) {
+        path() / HintFilename(hint_file_id), Void(),
+        [&](Void&& _, hint::Entry&& hint_entry) {
           f(acc,
             LogFiles::KeyEntry{hint_file_id, hint_entry.offset,
                                hint_entry.entry_sz, std::move(hint_entry.key)});
+          return Void();
         });
     if (!status.ok()) {
       return status;
