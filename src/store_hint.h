@@ -28,7 +28,7 @@ absl::Status Generate(absl::string_view hint_filepath) noexcept;
 
 template <typename T>
 absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T, Entry)> f) noexcept;
+                           std::function<T(T&&, Entry&&)> f) noexcept;
 
 }  // namespace hint
 }  // namespace store

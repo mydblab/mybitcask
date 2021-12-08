@@ -53,7 +53,7 @@ class LogFiles {
 
   template <typename T>
   absl::StatusOr<T> FoldKeys(T init,
-                             std::function<T(T&, KeyEntry&&)> f) const noexcept;
+                             std::function<T(T&&, KeyEntry&&)> f) const noexcept;
 
  private:
   ghc::filesystem::path path_;

@@ -20,7 +20,7 @@ absl::Status Generate(const ghc::filesystem::path& path,
 
 template <typename T>
 absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T&, Entry&&)> f) {
+                           std::function<T(T&&, Entry&&)> f) noexcept {
   std::ifstream file(hint_filepath.data(), std::ios::binary | std::ios::in);
 
   if (!file) {
@@ -37,13 +37,13 @@ absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
       return absl::InternalError(kErrRead);
     }
     entry.key.resize(entry.key_sz);
-    file.read(reinterpret_cast<const std::uint8_t*>(entry.key.data()),
-              entry.key_sz);
+    file.read(reinterpret_cast<char*>(entry.key.data()), entry.key_sz);
     if (file.fail()) {
       return absl::InternalError(kErrRead);
     }
-    f(acc, std::move(entry));
+    acc = f(std::move(acc), std::move(entry));
   }
+  return acc;
 }
 
 }  // namespace hint
