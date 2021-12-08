@@ -2,6 +2,7 @@
 #define MYBITCASK_SRC_FILENAME_H_
 
 #include "mybitcask/mybitcask.h"
+#include "absl/strings/string_view.h"
 
 #include <string>
 
@@ -18,7 +19,7 @@ std::string HintFilename(std::uint32_t file_id);
 // If filename is a mybitcask file, store the type of the file in *type.
 // The file_id encoded in the filename is stored in *file_id.  If the
 // filename was successfully parsed, returns true.  Else return false.
-bool ParseFilename(const std::string& filename, std::uint32_t* file_id,
+bool ParseFilename(absl::string_view filename, std::uint32_t* file_id,
                    FileType* type);
 
 }  // namespace store

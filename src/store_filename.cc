@@ -25,11 +25,11 @@ std::string HintFilename(std::uint32_t file_id) {
   return MakeFilename(file_id, HINT_FILE_SUFFIX);
 }
 
-bool ParseFilename(const std::string& filename, std::uint32_t* file_id,
+bool ParseFilename(absl::string_view filename, std::uint32_t* file_id,
                    FileType* type) {
   char suffix[10]{};
   suffix[9] = '\0';
-  if (std::sscanf(filename.c_str(), FILENAME_FORMAT, file_id, suffix) < 2) {
+  if (std::sscanf(filename.data(), FILENAME_FORMAT, file_id, suffix) < 2) {
     return false;
   }
 

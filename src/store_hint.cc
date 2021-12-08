@@ -1,4 +1,5 @@
 #include "store_hint.h"
+#include "store_filename.h"
 
 #include "absl/status/statusor.h"
 
@@ -7,14 +8,20 @@ namespace store {
 
 namespace hint {
 
-absl::Status Generate(absl::string_view hint_filepath) noexcept {
+absl::Status Generate(const ghc::filesystem::path& path,
+                      std::uint32_t file_id) noexcept {
+  std::ifstream file(path / LogFilename(file_id),
+                     std::ios::binary | std::ios::in);
+  if (!file) {
+    return absl::InternalError(kErrRead);
+  }
   return absl::Status();
 }
 
 template <typename T>
 absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
                            std::function<T(T&, Entry&&)> f) {
-  std::ifstream file(hint_filepath, std::ios::binary | std::ios::in);
+  std::ifstream file(hint_filepath.data(), std::ios::binary | std::ios::in);
 
   if (!file) {
     return absl::InternalError(kErrRead);
