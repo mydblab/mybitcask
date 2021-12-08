@@ -36,9 +36,9 @@ absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
     if (file.fail()) {
       return absl::InternalError(kErrRead);
     }
-    entry.key.resize(entry.val_sz);
+    entry.key.resize(entry.key_sz);
     file.read(reinterpret_cast<const std::uint8_t*>(entry.key.data()),
-              entry.val_sz);
+              entry.key_sz);
     if (file.fail()) {
       return absl::InternalError(kErrRead);
     }
