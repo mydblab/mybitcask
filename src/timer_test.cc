@@ -1,8 +1,6 @@
 #include "timer.h"
 #include "gtest/gtest.h"
 
-#include <chrono>
-
 namespace mybitcask {
 namespace timer {
 TEST(Timer, SetInterval) {
