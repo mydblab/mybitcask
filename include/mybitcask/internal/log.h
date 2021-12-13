@@ -30,13 +30,15 @@ const std::string kErrBadValueLength =
 
 class Entry;
 
-class LogReader {
+class KeyIter;
+
+class Reader {
  public:
-  LogReader() = default;
+  Reader() = default;
 
   // Create LogReader
   // If "checksum" is true, verify checksums if available.
-  LogReader(store::Store* src, bool checksum);
+  Reader(store::Store* src, bool checksum);
 
   // Read a log entry at the specified position.
   // Return true and store value part of entry to `value` if read successfully.
@@ -46,25 +48,29 @@ class LogReader {
   // of the entry to value.
   //
   // Safe for concurrent use by multiple threads.
-  absl::StatusOr<bool> Read(const Position& pos, std::uint32_t key_length,
+  absl::StatusOr<bool> Read(const Position& pos, std::uint8_t key_len,
                             std::uint8_t* value) noexcept;
 
   // Read a log entry a t the specified position. Returns ok status and log
   // entry if read successfully. Else return non-ok status
   //
   // Safe for concurrent use by multiple threads.
-  absl::StatusOr<absl::optional<Entry>> Read(const Position& pos) noexcept;
+  absl::StatusOr<absl::optional<Entry>> Read(const Position& pos,
+                                             std::uint8_t key_len) noexcept;
+
+  KeyIter key_iter(store::file_id_t start_file_id,
+                   store::file_id_t end_file_id) const;
 
  private:
   store::Store* src_;
   bool checksum_;
 };
 
-class LogWriter {
+class Writer {
  public:
-  LogWriter() = default;
+  Writer() = default;
 
-  explicit LogWriter(store::Store* dest);
+  explicit Writer(store::Store* dest);
 
   // Add an log entry to the end of the underlying dest. Returns ok status and
   // the offset and length of the added entry if append successfully. Else
@@ -108,17 +114,39 @@ class Entry final {
   const std::uint8_t* raw_ptr() const { return ptr_.get(); }
   std::uint8_t* raw_ptr() { return ptr_.get(); }
 
-  void set_key_size(std::uint8_t key_size) { key_size_ = key_size; }
-  void set_value_size(std::uint16_t value_size) { value_size_ = value_size; }
+  void set_key_len(std::uint8_t key_len) { key_len_ = key_len; }
+  void set_value_len(std::uint16_t value_len) { value_len_ = value_len; }
 
-  std::uint8_t key_size_;
-  std::uint16_t value_size_;
+  std::uint8_t key_len_;
+  std::uint16_t value_len_;
   std::unique_ptr<std::uint8_t[]> ptr_;
 
-  friend absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-      const Position& pos) noexcept;
+  friend absl::StatusOr<absl::optional<Entry>> Reader::Read(
+      const Position& pos, std::uint8_t key_len) noexcept;
 };
 
+struct Key {
+  store::file_id_t file_id;
+  std::uint8_t key_len;
+  std::uint16_t value_len;
+  std::uint32_t value_pos;
+  std::unique_ptr<std::uint8_t[]> key_data;
+  bool is_tombstone;
+};
+
+class KeyIter {
+ public:
+  KeyIter(store::Store* src, store::file_id_t start_file_id,
+          store::file_id_t end_file_id);
+
+  template <typename T>
+  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
+
+ private:
+  store::Store* src_;
+  store::file_id_t start_file_id_;
+  store::file_id_t end_file_id_;
+};
 }  // namespace log
 }  // namespace mybitcask
 

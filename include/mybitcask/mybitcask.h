@@ -17,9 +17,9 @@
 namespace mybitcask {
 
 struct Position {
-  std::uint32_t file_id;
-  std::uint32_t offset_in_file;
-  std::uint32_t length;
+  store::file_id_t file_id;
+  std::uint32_t value_pos;
+  std::uint16_t value_len;
 };
 
 class MyBitcask {
@@ -45,8 +45,8 @@ class MyBitcask {
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
   std::unique_ptr<store::Store> store_;
-  log::LogReader log_reader_;
-  log::LogWriter log_writer_;
+  log::Reader log_reader_;
+  log::Writer log_writer_;
 };
 }  // namespace mybitcask
 
