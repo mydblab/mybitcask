@@ -79,5 +79,6 @@ if(Gtest_FOUND)
   mybitcask_test(src/store_test.cc)
   mybitcask_test(src/store_filename_test.cc)
   mybitcask_test(src/mybitcask_test.cc)
+  mybitcask_test(src/timer_test.cc)
 
 endif()
