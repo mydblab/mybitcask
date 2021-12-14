@@ -20,7 +20,7 @@ class PosixMmapRandomAccessFileReader final : public RandomAccessReader {
       std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     std::size_t offset_size = static_cast<std::size_t>(offset);
     if (offset_size >= length_ - 1) {
-      return absl::OutOfRangeError("offset is too large");
+      return 0;
     }
     auto actual_size = std::min(length_ - offset_size, dst.size());
     std::memcpy(dst.data(), mmap_base_ + offset_size, actual_size);
