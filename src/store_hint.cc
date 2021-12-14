@@ -8,13 +8,16 @@ namespace store {
 
 namespace hint {
 
-absl::Status Generate(const ghc::filesystem::path& path,
-                      std::uint32_t file_id) noexcept {
-  std::ifstream file(path / LogFilename(file_id),
-                     std::ios::binary | std::ios::in);
-  if (!file) {
+Generator::Generator(log::Reader* log_reader, const ghc::filesystem::path& path)
+    : log_reader_(log_reader), path_(path) {}
+
+absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
+  std::ifstream hint_file(path_ / HintFilename(file_id),
+                          std::ios::binary | std::ios::trunc | std::ios::out);
+  if (!hint_file) {
     return absl::InternalError(kErrRead);
   }
+
   return absl::Status();
 }
 

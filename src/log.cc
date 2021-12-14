@@ -1,7 +1,8 @@
-#include "mybitcask/internal/log.h"
+#include "..\include\mybitcask\internal\log.h"
 #include "absl/base/internal/endian.h"
 #include "assert.h"
 #include "crc32c/crc32c.h"
+#include "mybitcask/internal/log.h"
 #include "mybitcask/mybitcask.h"
 
 #include <cstring>
@@ -12,26 +13,26 @@ namespace log {
 // Format of log entry on disk
 //
 //          |<--------- CRC coverage ---------->|
-//              +---- size of ----+
-//              |                 |
-//              |                 v
-// +--------+---+--+--------+-- - - --+-- - - --+
-// | CRC32C |key_sz| val_sz |   key   |   val   |
-// +--------+------+----+---+-- - - --+-- - - --+
-//  (32bits) (8bits) (16bits)               ^
-//                      |                   |
-//                      +----- size of -----+
+//              +---- length of ----+
+//              |                   |
+//              |                   v
+// +--------+---+---+---------+-- - - --+-- - - --+
+// | CRC32C |key_len| val_len |   key   |   val   |
+// +--------+-------+----+----+-- - - --+-- - - --+
+//  (32bits) (8bits)  (16bits)               ^
+//                       |                   |
+//                       +----- size of -----+
 
 // Tombstone is a special mark that indicates that a record once occupied the
-// slot but does so no longer. When the `val_sz` value in the log entry is
+// slot but does so no longer. When the `val_len` value in the log entry is
 // kTombstone(0xFFFF), it means delete the record corresponding to the key. In
 // this case the `val` in this log entry is empty
 const std::uint16_t kTombstone = 0xFFFF;
 
-const std::size_t kCrc32Len = 4;
-const std::size_t kKeySzLen = 1;
-const std::size_t kValSzLen = 2;
-const std::size_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
+const std::uint32_t kCrc32Len = 4;
+const std::uint32_t kKeySzLen = 1;
+const std::uint32_t kValSzLen = 2;
+const std::uint32_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
 
 // Header represents log entry header which contains CRC32C, key_size and
 // value_size
@@ -39,23 +40,23 @@ class Header final {
  public:
   Header(std::uint8_t* const data) : data_(data) {}
 
-  std::uint8_t key_size() const { return data_[kCrc32Len]; }
-  std::uint16_t value_size() const {
+  std::uint8_t key_len() const { return data_[kCrc32Len]; }
+  std::uint16_t value_len() const {
     if (is_tombstone()) {
       return 0;
     }
-    return raw_value_size();
+    return raw_value_len();
   }
-  bool is_tombstone() const { return raw_value_size() == kTombstone; }
+  bool is_tombstone() const { return raw_value_len() == kTombstone; }
 
   void set_crc32(std::uint32_t crc32) {
     absl::little_endian::Store32(&data_[0], crc32);
   }
-  void set_key_size(std::uint8_t key_size) { data_[kCrc32Len] = key_size; }
-  void set_value_size(std::uint16_t value_size) {
-    absl::little_endian::Store16(&data_[kCrc32Len + kKeySzLen], value_size);
+  void set_key_len(std::uint8_t key_len) { data_[kCrc32Len] = key_len; }
+  void set_value_len(std::uint16_t value_len) {
+    absl::little_endian::Store16(&data_[kCrc32Len + kKeySzLen], value_len);
   }
-  void set_tombstone() { set_value_size(kTombstone); }
+  void set_tombstone() { set_value_len(kTombstone); }
 
   std::uint8_t* data() { return data_; }
 
@@ -68,11 +69,11 @@ class Header final {
   std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const {
     auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeySzLen + kValSzLen);
     return crc32c::Extend(header_crc, kv_data,
-                          static_cast<std::size_t>(key_size()) + value_size());
+                          static_cast<std::size_t>(key_len()) + value_len());
   }
 
  private:
-  std::uint16_t raw_value_size() const {
+  std::uint16_t raw_value_len() const {
     return absl::little_endian::Load16(&data_[kCrc32Len + kKeySzLen]);
   }
 
@@ -82,41 +83,39 @@ class Header final {
 };
 
 Entry::Entry(std::uint32_t length)
-    : ptr_(new uint8_t[length]), key_size_(0), value_size_(0) {}
+    : ptr_(new uint8_t[length]), key_len_(0), value_len_(0) {}
 
 absl::Span<const std::uint8_t> Entry::key() const {
-  return {raw_ptr() + kHeaderLen, key_size_};
+  return {raw_ptr() + kHeaderLen, key_len_};
 }
 
 absl::Span<const std::uint8_t> Entry::value() const {
-  return {raw_ptr() + kHeaderLen + key_size_, value_size_};
+  return {raw_ptr() + kHeaderLen + key_len_, value_len_};
 }
 
-LogReader::LogReader(store::Store* src, bool checksum)
+Reader::Reader(store::Store* src, bool checksum)
     : src_(src), checksum_(checksum) {}
 
-absl::StatusOr<bool> LogReader::Read(const Position& pos,
-                                     std::uint32_t key_length,
-                                     std::uint8_t* value) noexcept {
+absl::StatusOr<bool> Reader::Read(const Position& pos, std::uint8_t key_len,
+                                  std::uint8_t* value) noexcept {
   if (checksum_) {
-    auto entry = Read(pos);
+    auto entry = Read(pos, key_len);
     if (!entry.ok()) {
       return entry.status();
     }
     if (!entry->has_value()) {
       return false;
     }
-    auto entry_val = (*entry)->value();
-    std::memcpy(value, entry_val.data(), entry_val.length());
+    if (value) {
+      auto entry_val = (*entry)->value();
+      std::memcpy(value, entry_val.data(), entry_val.length());
+    }
     return true;
   }
 
-  auto dst =
-      absl::Span<std::uint8_t>(value, pos.length - kHeaderLen - key_length);
+  auto dst = absl::MakeSpan(value, pos.value_len);
   auto read_len =
-      src_->ReadAt(store::Position(pos.file_id, pos.offset_in_file +
-                                                    kHeaderLen + key_length),
-                   dst);
+      src_->ReadAt(store::Position(pos.file_id, pos.value_pos), dst);
   if (!read_len.ok()) {
     return read_len.status();
   }
@@ -130,10 +129,14 @@ absl::StatusOr<bool> LogReader::Read(const Position& pos,
   return true;
 }
 
-absl::StatusOr<absl::optional<Entry>> LogReader::Read(
-    const Position& pos) noexcept {
-  Entry entry(pos.length);
-  auto read_len = src_->ReadAt(pos, {entry.raw_ptr(), pos.length});
+absl::StatusOr<absl::optional<Entry>> Reader::Read(
+    const Position& pos, std::uint8_t key_len) noexcept {
+  std::uint32_t entry_len = kHeaderLen + key_len + pos.value_len;
+  Entry entry(entry_len);
+
+  auto read_len = src_->ReadAt(
+      store::Position(pos.file_id, pos.value_pos - key_len - kHeaderLen),
+      {entry.raw_ptr(), entry_len});
   if (!read_len.ok()) {
     return read_len.status();
   }
@@ -141,12 +144,12 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
     // entry does not exist
     return absl::nullopt;
   }
-  if (*read_len != pos.length) {
+  if (*read_len != entry_len) {
     return absl::InternalError(kErrBadEntry);
   }
   Header header(entry.raw_ptr());
-  entry.set_key_size(header.key_size());
-  entry.set_value_size(header.value_size());
+  entry.set_key_len(header.key_len());
+  entry.set_value_len(header.value_len());
 
   // check crc
   if (checksum_ && !header.check_crc(entry.key().data())) {
@@ -158,15 +161,20 @@ absl::StatusOr<absl::optional<Entry>> LogReader::Read(
   return entry;
 }
 
-LogWriter::LogWriter(store::Store* dest) : dest_(dest) {}
+KeyIter Reader::key_iter(store::file_id_t start_file_id,
+                         store::file_id_t end_file_id) const {
+  return KeyIter(src_, start_file_id, end_file_id);
+}
 
-absl::Status LogWriter::AppendTombstone(
+Writer::Writer(store::Store* dest) : dest_(dest) {}
+
+absl::Status Writer::AppendTombstone(
     absl::Span<const std::uint8_t> key,
     std::function<void(Position)> success_callback) noexcept {
   return AppendInner(key, {}, success_callback);
 }
 
-absl::Status LogWriter::Append(
+absl::Status Writer::Append(
     absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
     std::function<void(Position)> success_callback) noexcept {
   if (value.size() == 0) {
@@ -175,7 +183,7 @@ absl::Status LogWriter::Append(
   return AppendInner(key, value, success_callback);
 }
 
-absl::Status LogWriter::AppendInner(
+absl::Status Writer::AppendInner(
     absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
     std::function<void(Position)> success_callback) noexcept {
   if (key.size() == 0 || key.size() > 0xFF) {
@@ -185,17 +193,19 @@ absl::Status LogWriter::AppendInner(
     return absl::InternalError(kErrBadValueLength);
   }
 
-  std::uint32_t buf_len = kHeaderLen + static_cast<std::uint32_t>(key.size()) +
-                          static_cast<std::uint32_t>(value.size());
+  auto key_len = static_cast<std::uint8_t>(key.size());
+  auto value_len = static_cast<std::uint16_t>(value.size());
+
+  std::uint32_t buf_len = kHeaderLen + key_len + value_len;
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
   Header header(buf.get());
-  header.set_key_size(static_cast<std::uint8_t>(key.size()));
-  std::memcpy(&buf[kHeaderLen], key.data(), key.size());
+  header.set_key_len(key_len);
+  std::memcpy(&buf[kHeaderLen], key.data(), key_len);
 
   if (value.size() > 0) {
-    header.set_value_size(static_cast<std::uint16_t>(value.size()));
-    std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value.size());
+    header.set_value_len(value_len);
+    std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value_len);
   } else {
     header.set_tombstone();
   }
@@ -204,7 +214,11 @@ absl::Status LogWriter::AppendInner(
 
   auto status = dest_->Append(
       {buf.get(), buf_len}, [=, &success_callback](store::Position pos) {
-        success_callback(Position{pos.file_id, pos.offset_in_file, buf_len});
+        success_callback(Position{
+            pos.file_id,
+            pos.offset_in_file + kHeaderLen + key_len,  // value_pos
+            value_len                                   // value_len
+        });
       });
   if (!status.ok()) {
     return status;
@@ -214,6 +228,56 @@ absl::Status LogWriter::AppendInner(
     return status;
   }
   return absl::OkStatus();
+}
+
+KeyIter::KeyIter(store::Store* src, store::file_id_t start_file_id,
+                 store::file_id_t end_file_id)
+    : src_(src), start_file_id_(start_file_id), end_file_id_(end_file_id) {}
+
+template <typename T>
+absl::StatusOr<T> KeyIter::Fold(T init,
+                                std::function<T(T&&, Key&&)> f) noexcept {
+  auto acc = std::move(init);
+  for (store::file_id_t file_id = start_file_id_; file_id <= end_file_id_;
+       file_id++) {
+    std::uint32_t offset = 0;
+    while (true) {
+      // read header
+      std::unique_ptr<std::uint8_t[]> header_data(new std::uint8_t[kHeaderLen]);
+      auto read_len = src_->ReadAt(store::Position(file_id, offset),
+                                   {header_data.get(), kHeaderLen});
+      if (!read_len.ok()) {
+        return read_len;
+      }
+      if (*read_len == 0) {
+        // end of file
+        break;
+      }
+      if (*read_len != kHeaderLen) {
+        return absl::InternalError(kErrBadEntry);
+      }
+      Header header(header_data.get());
+
+      // read key
+      offset += kHeaderLen;
+      std::unique_ptr<std::uint8_t[]> key_data(
+          new std::uint8_t[header.key_len()]);
+      read_len = src_->ReadAt(store::Position(file_id, offset),
+                              {header_data.get(), kHeaderLen});
+      if (!read_len.ok()) {
+        return read_len;
+      }
+      if (*read_len != header.key_len()) {
+        return absl::InternalError(kErrBadEntry);
+      }
+      acc = f(std::move(acc), Key{file_id, header.key_len(), header.value_len(),
+                                  offset + header.key_len(),  // value_pos
+                                  std::move(key_data), header.is_tombstone()});
+
+      offset += header.key_len() + header.value_len();
+    }
+  }
+  return acc;
 }
 
 }  // namespace log

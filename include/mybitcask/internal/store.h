@@ -23,7 +23,6 @@ using file_id_t = std::uint32_t;
 // Position represents a position in db files.
 struct Position {
   Position(file_id_t file_id, std::uint32_t offset_in_file);
-  Position(const mybitcask::Position& pos);
 
   file_id_t file_id;
   std::uint32_t offset_in_file;
@@ -52,8 +51,8 @@ class LogFiles {
   const std::vector<file_id_t>& hint_files() const { return hint_files_; }
 
   template <typename T>
-  absl::StatusOr<T> FoldKeys(T init,
-                             std::function<T(T&&, KeyEntry&&)> f) const noexcept;
+  absl::StatusOr<T> FoldKeys(
+      T init, std::function<T(T&&, KeyEntry&&)> f) const noexcept;
 
  private:
   ghc::filesystem::path path_;

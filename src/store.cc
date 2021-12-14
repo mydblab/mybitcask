@@ -9,8 +9,6 @@ namespace store {
 
 Position::Position(file_id_t file_id, std::uint32_t offset_in_file)
     : file_id(file_id), offset_in_file(offset_in_file) {}
-Position::Position(const mybitcask::Position& pos)
-    : file_id(pos.file_id), offset_in_file(pos.offset_in_file) {}
 
 LogFiles::LogFiles(const ghc::filesystem::path& path)
     : path_(path), hint_files_() {
@@ -52,7 +50,7 @@ absl::StatusOr<T> LogFiles::FoldKeys(
     auto status = hint::FoldKeys(
         path() / HintFilename(hint_file_id), Void(),
         [&](Void&& _, hint::Entry&& hint_entry) {
-          f(acc,
+          acc = f(std::move(acc),
             LogFiles::KeyEntry{hint_file_id, hint_entry.offset,
                                hint_entry.entry_sz, std::move(hint_entry.key)});
           return Void();

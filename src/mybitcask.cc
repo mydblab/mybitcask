@@ -8,8 +8,8 @@ MyBitcask::MyBitcask(const ghc::filesystem::path& data_dir,
   store::LogFiles log_files(data_dir);
   store_ = std::unique_ptr<store::Store>(
       new store::Store(log_files, dead_bytes_threshold));
-  log_reader_ = log::LogReader(store_.get(), checksum);
-  log_writer_ = log::LogWriter(store_.get());
+  log_reader_ = log::Reader(store_.get(), checksum);
+  log_writer_ = log::Writer(store_.get());
 }
 
 absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
