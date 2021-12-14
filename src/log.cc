@@ -1,4 +1,5 @@
-#include "..\include\mybitcask\internal\log.h"
+#include "mybitcask/internal/log.h"
+
 #include "absl/base/internal/endian.h"
 #include "assert.h"
 #include "crc32c/crc32c.h"
@@ -247,7 +248,7 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       auto read_len = src_->ReadAt(store::Position(file_id, offset),
                                    {header_data.get(), kHeaderLen});
       if (!read_len.ok()) {
-        return read_len;
+        return read_len.status();
       }
       if (*read_len == 0) {
         // end of file
@@ -263,9 +264,9 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       std::unique_ptr<std::uint8_t[]> key_data(
           new std::uint8_t[header.key_len()]);
       read_len = src_->ReadAt(store::Position(file_id, offset),
-                              {header_data.get(), kHeaderLen});
+                              {key_data.get(), header.key_len()});
       if (!read_len.ok()) {
-        return read_len;
+        return read_len.status();
       }
       if (*read_len != header.key_len()) {
         return absl::InternalError(kErrBadEntry);

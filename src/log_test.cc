@@ -19,10 +19,11 @@ namespace log {
 absl::StatusOr<absl::optional<Entry>> log_read(Reader* log_reader,
                                                const Position& pos,
                                                const std::string& key) {
-  auto entry = log_reader->Read(pos, key.length());
+  auto entry = log_reader->Read(pos, static_cast<std::uint8_t>(key.length()));
   std::vector<std::uint8_t> value;
   value.resize(pos.value_len);
-  auto exist = log_reader->Read(pos, key.length(), value.data());
+  auto exist = log_reader->Read(pos, static_cast<std::uint8_t>(key.length()),
+                                value.data());
   EXPECT_EQ(entry.ok(), exist.ok());
   if (entry.ok()) {
     EXPECT_EQ(entry->has_value(), *exist);
@@ -32,7 +33,7 @@ absl::StatusOr<absl::optional<Entry>> log_read(Reader* log_reader,
   }
   return entry;
 }
-
+/*
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
@@ -45,14 +46,11 @@ TEST(LogReaderWriterTest, NormalReadWriter) {
     std::string value;
   };
 
-  std::default_random_engine e(std::random_device{}());
-
   std::vector<TestCase> cases = {
       {"hello", "world"},
       {"lbw", "nb"},
       {"玩游戏一定要", "啸"},
-      {test::GenerateRandomString(0xFF),
-       test::GenerateRandomString(0xFFFF - 1)},
+      {test::RandomString(0xFF), test::RandomString(0xFFFF - 1)},
   };
 
   absl::Status append_status;
@@ -184,16 +182,15 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
       << "append entry with empty value should return kErrBadValueLength";
 
   // Append entry with an oversized key
-  status = log_writer.Append(
-      test::StrSpan(test::GenerateRandomString(0xFF, 0xFF + 100)),
-      test::StrSpan("not care"), [](Position) {});
+  status =
+      log_writer.Append(test::StrSpan(test::RandomString(0xFF, 0xFF + 100)),
+                        test::StrSpan("not care"), [](Position) {});
   EXPECT_FALSE(status.ok()) << "append entry with an oversized key should fail";
   EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append entry with an oversized key should return kErrBadKeyLength";
 
   status = log_writer.AppendTombstone(
-      test::StrSpan(test::GenerateRandomString(0xFF, 0xFF + 100)),
-      [](Position) {});
+      test::StrSpan(test::RandomString(0xFF, 0xFF + 100)), [](Position) {});
   EXPECT_FALSE(status.ok())
       << "append tombstone entry with an oversized key should fail";
   EXPECT_EQ(status.message(), kErrBadKeyLength)
@@ -203,16 +200,75 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
   // Append entry with an oversized value
   status = log_writer.Append(
       test::StrSpan("not care"),
-      test::StrSpan(test::GenerateRandomString(0xFFFF, 0xFFFF + 200)),
-      [](Position) {});
+      test::StrSpan(test::RandomString(0xFFFF, 0xFFFF + 200)), [](Position) {});
   EXPECT_FALSE(status.ok())
       << "append entry with an oversized value should fail";
   EXPECT_EQ(status.message(), kErrBadValueLength)
       << "append entry with an oversized value should return "
          "kErrBadValueLength";
 }
+*/
+struct TestEntry {
+  std::string key;
+  // Tombstone if None.
+  absl::optional<std::string> value;
+};
 
-TEST(KeyIterTest, Fold) { auto tmpdir = test::MakeTempDir("mybitcask_log_"); }
+TestEntry randomEntry() {
+  auto is_tombstone = test::RandomBool();
+
+  absl::optional<std::string> value;
+  if (is_tombstone) {
+    value = absl::nullopt;
+  } else {
+    value = test::RandomString(0xFF);
+  }
+
+  return TestEntry{test::RandomString(0xFF), value};
+}
+
+TEST(KeyIterTest, Fold) {
+  auto tmpdir = test::MakeTempDir("mybitcask_log_");
+  ASSERT_TRUE(tmpdir.ok());
+  store::Store store(store::LogFiles(tmpdir->path()), 512);
+  Writer log_writer(&store);
+  Reader log_reader(&store, false);
+
+  std::vector<TestEntry> entrys(100);
+  auto len = entrys.capacity();
+  for (int i = 0; i < len; i++) {
+    auto entry = randomEntry();
+    entrys.push_back(entry);
+    if (entry.value.has_value()) {
+      log_writer.Append(test::StrSpan(entry.key), test::StrSpan(*entry.value),
+                        [](Position) {});
+    } else {
+      log_writer.AppendTombstone(test::StrSpan(entry.key), [](Position) {});
+    }
+  }
+
+  store::LogFiles log_files(tmpdir->path());
+  store::file_id_t latest_file_id;
+
+  if (!log_files.active_log_files().empty()) {
+    latest_file_id = *(log_files.active_log_files().cend() - 1);
+  } else {
+    latest_file_id = *(log_files.older_log_files().cend() - 1);
+  }
+  auto key_iter = log_reader.key_iter(1, latest_file_id);
+
+  auto status = key_iter.Fold<std::vector<std::string>>(
+      std::vector<std::string>(),
+      [](std::vector<std::string>&& acc, Key&& key) {
+        auto str = std::string(reinterpret_cast<char*>(key.key_data.release()),
+                               key.key_len);
+        std::cout << str << std::endl;
+        acc.push_back(str);
+        return acc;
+      });
+
+  std::cout << status.status().message() << std::endl;
+}
 
 }  // namespace log
 }  // namespace mybitcask

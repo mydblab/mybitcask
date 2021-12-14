@@ -134,11 +134,13 @@ struct Key {
   bool is_tombstone;
 };
 
+
 class KeyIter {
  public:
   KeyIter(store::Store* src, store::file_id_t start_file_id,
           store::file_id_t end_file_id);
 
+  
   template <typename T>
   absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
 
@@ -147,6 +149,7 @@ class KeyIter {
   store::file_id_t start_file_id_;
   store::file_id_t end_file_id_;
 };
+
 }  // namespace log
 }  // namespace mybitcask
 

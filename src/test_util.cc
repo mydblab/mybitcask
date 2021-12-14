@@ -40,8 +40,7 @@ absl::StatusOr<TempFile> MakeTempFile(std::string&& prefix,
 
 absl::StatusOr<TempFile> MakeTempDir(std::string&& prefix,
                                      std::size_t name_length) noexcept {
-  auto temp_dirname =
-      TempFilename(std::move(prefix), "", name_length);
+  auto temp_dirname = TempFilename(std::move(prefix), "", name_length);
   if (!temp_dirname.ok()) {
     return absl::Status(temp_dirname.status());
   }
@@ -67,7 +66,7 @@ absl::StatusOr<ghc::filesystem::path> TempFilename(
 
   ghc::filesystem::path filename{};
   while (true) {
-    filename = tmpdir / (prefix + GenerateRandomString(name_length) + suffix);
+    filename = tmpdir / (prefix + RandomString(name_length) + suffix);
     if (!ghc::filesystem::exists(filename)) {
       break;
     }
@@ -78,17 +77,24 @@ absl::StatusOr<ghc::filesystem::path> TempFilename(
 static std::default_random_engine _default_random_engine(
     std::random_device{}());
 
-std::string GenerateRandomString(std::size_t length) noexcept {
-  return GenerateRandomString(_default_random_engine, length);
+bool RandomBool() noexcept { return RandomBool(_default_random_engine); }
+
+std::string RandomString(std::size_t length) noexcept {
+  return RandomString(_default_random_engine, length);
 }
 
-std::string GenerateRandomString(std::size_t min_len,
-                                 std::size_t max_len) noexcept {
-  return GenerateRandomString(_default_random_engine, min_len, max_len);
+std::string RandomString(std::size_t min_len, std::size_t max_len) noexcept {
+  return RandomString(_default_random_engine, min_len, max_len);
 }
 
 template <class Engine>
-std::string GenerateRandomString(Engine& engine, std::size_t length) noexcept {
+bool RandomBool(Engine& engine) noexcept {
+  static auto gen = std::bind(std::uniform_int_distribution<>(0, 1), engine);
+  return gen();
+}
+
+template <class Engine>
+std::string RandomString(Engine& engine, std::size_t length) noexcept {
   std::uniform_int_distribution<short> dist(0, 35);
   std::string str;
   str.reserve(length);
@@ -105,10 +111,10 @@ std::string GenerateRandomString(Engine& engine, std::size_t length) noexcept {
 }
 
 template <class Engine>
-std::string GenerateRandomString(Engine& engine, std::size_t min_len,
-                                 std::size_t max_len) noexcept {
+std::string RandomString(Engine& engine, std::size_t min_len,
+                         std::size_t max_len) noexcept {
   std::uniform_int_distribution<std::size_t> dist(min_len, max_len);
-  return GenerateRandomString(engine, dist(engine));
+  return RandomString(engine, dist(engine));
 }
 
 absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept {
