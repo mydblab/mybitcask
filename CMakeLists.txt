@@ -29,6 +29,7 @@ if (WIN32)
   target_sources(${PROJECT_NAME} PRIVATE src/io_windows.cc)
 else (WIN32)
   target_sources(${PROJECT_NAME} PRIVATE src/io_posix.cc)
+  target_sources(${PROJECT_NAME} PRIVATE src/filelock_posix.cc)
 endif (WIN32)
 
 target_link_libraries(${PROJECT_NAME}
@@ -80,5 +81,6 @@ if(Gtest_FOUND)
   mybitcask_test(src/store_filename_test.cc)
   mybitcask_test(src/mybitcask_test.cc)
   mybitcask_test(src/timer_test.cc)
+  mybitcask_test(src/filelock_test.cc)
 
 endif()
