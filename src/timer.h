@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <functional>
 
 namespace mybitcask {
 namespace timer {
