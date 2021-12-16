@@ -20,6 +20,7 @@ std::function<void()> SetInterval(
     while (active->load(std::memory_order_acquire)) {
       std::this_thread::sleep_for<Rep, Period>(interval);
       if (!active->load(std::memory_order_acquire)) {
+        delete active;
         return;
       }
       func();
@@ -29,7 +30,6 @@ std::function<void()> SetInterval(
   t.detach();
   return [=]() {
     active->store(false, std::memory_order_release);
-    delete active;
   };
 }
 

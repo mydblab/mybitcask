@@ -14,6 +14,7 @@ class LockFileWindows final : public LockFile {
       DWORD error_code = ::GetLastError();
       return absl::InternalError(win::GetWindowsErrorMessage(error_code));
     }
+    locked_ = true;
     return absl::OkStatus();
   }
 
@@ -30,6 +31,7 @@ class LockFileWindows final : public LockFile {
       }
       return absl::InternalError(win::GetWindowsErrorMessage(error_code));
     }
+    locked_ = true;
     return true;
   }
 
@@ -40,6 +42,7 @@ class LockFileWindows final : public LockFile {
       DWORD error_code = ::GetLastError();
       return absl::InternalError(win::GetWindowsErrorMessage(error_code));
     }
+    locked_ = false;
     return absl::OkStatus();
   }
 
