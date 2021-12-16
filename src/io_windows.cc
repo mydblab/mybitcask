@@ -21,6 +21,7 @@ class WindowsMmapRandomAccessFileReader final : public RandomAccessReader {
     if (offset_size >= length_ - 1) {
       return 0;
     }
+    
     auto actual_size = (std::min)(length_ - offset_size, dst.size());
     std::memcpy(dst.data(), mmap_base_ + offset_size, actual_size);
     return actual_size;

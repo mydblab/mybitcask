@@ -13,6 +13,9 @@ class FStreamSequentialWriter : public SequentialWriter {
   absl::StatusOr<std::uint32_t> Append(
       absl::Span<const std::uint8_t> src) noexcept override {
     file_.write(reinterpret_cast<const char*>(src.data()), src.size());
+    if (file_.fail()) {
+      return absl::InternalError("write failed");
+    }
     std::uint32_t offset = current_offset_;
     current_offset_ += src.size();
     return offset;
@@ -42,7 +45,8 @@ class FStreamSequentialWriter : public SequentialWriter {
 
 absl::StatusOr<std::unique_ptr<SequentialWriter>> OpenSequentialFileWriter(
     ghc::filesystem::path&& filename) noexcept {
-  std::ofstream file(filename, std::fstream::out | std::fstream::app);
+  std::ofstream file(
+      filename, std::fstream::out | std::fstream::app | std::fstream::binary);
   if (!file.is_open()) {
     return absl::InternalError(kErrOpenFailed);
   }
