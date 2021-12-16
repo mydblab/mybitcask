@@ -13,7 +13,7 @@ namespace log {
 
 // Format of log entry on disk
 //
-//          |<--------- CRC coverage ---------->|
+//          |<---------- CRC coverage ----------->|
 //              +---- length of ----+
 //              |                   |
 //              |                   v
@@ -268,13 +268,13 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       if (!read_len.ok()) {
         return read_len.status();
       }
+
       if (*read_len != header.key_len()) {
         return absl::InternalError(kErrBadEntry);
       }
       acc = f(std::move(acc), Key{file_id, header.key_len(), header.value_len(),
                                   offset + header.key_len(),  // value_pos
                                   std::move(key_data), header.is_tombstone()});
-
       offset += header.key_len() + header.value_len();
     }
   }

@@ -33,7 +33,7 @@ absl::StatusOr<absl::optional<Entry>> log_read(Reader* log_reader,
   }
   return entry;
 }
-/*
+
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
@@ -207,7 +207,7 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
       << "append entry with an oversized value should return "
          "kErrBadValueLength";
 }
-*/
+
 struct TestEntry {
   std::string key;
   // Tombstone if None.
@@ -221,10 +221,10 @@ TestEntry randomEntry() {
   if (is_tombstone) {
     value = absl::nullopt;
   } else {
-    value = test::RandomString(0xFF);
+    value = test::RandomString(0x1, 0xF0);
   }
 
-  return TestEntry{test::RandomString(0xFF), value};
+  return TestEntry{test::RandomString(0x1, 0xF0), value};
 }
 
 TEST(KeyIterTest, Fold) {
@@ -234,16 +234,20 @@ TEST(KeyIterTest, Fold) {
   Writer log_writer(&store);
   Reader log_reader(&store, false);
 
-  std::vector<TestEntry> entrys(100);
-  auto len = entrys.capacity();
-  for (int i = 0; i < len; i++) {
+  std::vector<TestEntry> entrys;
+  int entrys_size = 100;
+  for (int i = 0; i < entrys_size; i++) {
     auto entry = randomEntry();
     entrys.push_back(entry);
     if (entry.value.has_value()) {
-      log_writer.Append(test::StrSpan(entry.key), test::StrSpan(*entry.value),
-                        [](Position) {});
+      ASSERT_TRUE(log_writer
+                      .Append(test::StrSpan(entry.key),
+                              test::StrSpan(*entry.value), [](Position) {})
+                      .ok());
     } else {
-      log_writer.AppendTombstone(test::StrSpan(entry.key), [](Position) {});
+      ASSERT_TRUE(
+          log_writer.AppendTombstone(test::StrSpan(entry.key), [](Position) {})
+              .ok());
     }
   }
 
@@ -257,17 +261,27 @@ TEST(KeyIterTest, Fold) {
   }
   auto key_iter = log_reader.key_iter(1, latest_file_id);
 
-  auto status = key_iter.Fold<std::vector<std::string>>(
-      std::vector<std::string>(),
-      [](std::vector<std::string>&& acc, Key&& key) {
-        auto str = std::string(reinterpret_cast<char*>(key.key_data.release()),
-                               key.key_len);
-        std::cout << str << std::endl;
-        acc.push_back(str);
+  struct TestKey {
+    std::string key;
+    bool is_tombstone;
+  };
+
+  auto fold_keys = key_iter.Fold<std::vector<TestKey>>(
+      std::vector<TestKey>(), [](std::vector<TestKey>&& acc, Key&& key) {
+        auto k = std::string(reinterpret_cast<char*>(key.key_data.release()),
+                             key.key_len);
+        acc.push_back(TestKey{k, key.is_tombstone});
         return acc;
       });
 
-  std::cout << status.status().message() << std::endl;
+
+  ASSERT_TRUE(fold_keys.ok())
+      << "Failed to fold keys; err: " << fold_keys.status().message();
+  ASSERT_EQ(entrys.size(), fold_keys->size());
+  for (int i = 0; i < fold_keys->size(); i++) {
+    EXPECT_EQ(entrys[i].key, (*fold_keys)[i].key);
+    EXPECT_EQ(!entrys[i].value.has_value(), (*fold_keys)[i].is_tombstone);
+  }
 }
 
 }  // namespace log

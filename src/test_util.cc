@@ -79,18 +79,18 @@ static std::default_random_engine _default_random_engine(
 
 bool RandomBool() noexcept { return RandomBool(_default_random_engine); }
 
+template <class Engine>
+bool RandomBool(Engine& engine) noexcept {
+  static auto gen = std::bind(std::uniform_int_distribution<>(0, 1), engine);
+  return gen();
+}
+
 std::string RandomString(std::size_t length) noexcept {
   return RandomString(_default_random_engine, length);
 }
 
 std::string RandomString(std::size_t min_len, std::size_t max_len) noexcept {
   return RandomString(_default_random_engine, min_len, max_len);
-}
-
-template <class Engine>
-bool RandomBool(Engine& engine) noexcept {
-  static auto gen = std::bind(std::uniform_int_distribution<>(0, 1), engine);
-  return gen();
 }
 
 template <class Engine>
