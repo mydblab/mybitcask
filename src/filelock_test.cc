@@ -24,27 +24,5 @@ TEST(LockFile, Lock) {
   ASSERT_TRUE((*file1)->Unlock().ok());
 }
 
-TEST(LockFileGuard, Lock) {
-  auto tempfile = test::MakeTempFile("mybitcask_test_", ".lock");
-  ASSERT_TRUE(tempfile.ok());
-  auto file = Open(tempfile->path());
-  ASSERT_TRUE(file.ok());
-  auto file1 = Open(tempfile->path());
-  ASSERT_TRUE(file1.ok());
-
-  {
-    LockFileGuard guard(std::move(*file));
-    ASSERT_TRUE(guard.Lock().ok());
-    auto lock_ok = (*file1)->TryLock();
-    ASSERT_TRUE(lock_ok.ok());
-    ASSERT_FALSE(*lock_ok);
-  }
-  
-  auto lock_ok = (*file1)->TryLock();
-  ASSERT_TRUE(lock_ok.ok());
-  ASSERT_TRUE(*lock_ok);
-  ASSERT_TRUE((*file1)->Unlock().ok());
-}
-
 }  // namespace filelock
 }  // namespace mybitcask

@@ -23,23 +23,6 @@ class LockFile {
   virtual ~LockFile() = default;
 };
 
-class LockFileGuard {
- public:
-  LockFileGuard(std::unique_ptr<LockFile>&& lock_file, bool delete_file = true)
-      : lock_file_(lock_file.release()), delete_file_(delete_file) {
-  }
-  
-  absl::Status Lock() {
-    return lock_file_->Lock();
-  }
-
-  ~LockFileGuard() { lock_file_->Unlock(delete_file_); }
-
- private:
-  std::unique_ptr<LockFile> lock_file_;
-  bool delete_file_;
-};
-
 absl::StatusOr<std::unique_ptr<LockFile>> Open(
     const ghc::filesystem::path& filename);
 
