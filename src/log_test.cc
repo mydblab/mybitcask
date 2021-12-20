@@ -255,9 +255,9 @@ TEST(KeyIterTest, Fold) {
   store::file_id_t latest_file_id;
 
   if (!log_files.active_log_files().empty()) {
-    latest_file_id = *(log_files.active_log_files().cend() - 1);
+    latest_file_id = log_files.active_log_files().back();
   } else {
-    latest_file_id = *(log_files.older_log_files().cend() - 1);
+    latest_file_id = log_files.older_log_files().back();
   }
   auto key_iter = log_reader.key_iter(1, latest_file_id);
 

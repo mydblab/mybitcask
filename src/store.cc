@@ -50,11 +50,8 @@ absl::StatusOr<T> LogFiles::FoldKeys(T init,
   for (auto& hint_file_id : hint_files()) {
     auto status = hint::FoldKeys(
         path() / HintFilename(hint_file_id), Void(),
-        [&](Void&&, hint::Entry&& hint_entry) {
-          acc = f(std::move(acc),
-                  LogFiles::KeyEntry{hint_file_id, hint_entry.value_pos,
-                                     hint_entry.value_len,
-                                     std::move(hint_entry.key)});
+        [&](Void&&, log::Key&& key) {
+          acc = f(std::move(acc), log::KeyIndex{hint_file_id, std::move(key)});
           return Void();
         });
     if (!status.ok()) {
@@ -64,12 +61,10 @@ absl::StatusOr<T> LogFiles::FoldKeys(T init,
   if (!active_log_files_.empty()) {
     auto key_iter = log_reader->key_iter(active_log_files_.front(),
                                          active_log_files_.back());
-    auto status = key_iter.Fold(Void(), [&](Void&& _, log::Key&& key) {
-      acc = f(std::move(acc),
-              LogFiles::KeyEntry{key.file_id, key.value_pos, key.value_len,
-                                 std::move(key.key_data)});
+    auto status = key_iter.Fold(Void(), [&](Void&& _, log::KeyIndex&& key) {
+      acc = f(std::move(acc), std::move(key));
       return Void();
-    })
+    });
   }
 
   return acc;
@@ -139,9 +134,9 @@ Store::Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold)
       readers_(),
       readers_lock_() {
   if (!log_files.active_log_files().empty()) {
-    latest_file_id_ = *log_files.active_log_files().cend();
+    latest_file_id_ = log_files.active_log_files().back();
   } else if (!log_files.older_log_files().empty()) {
-    latest_file_id_ = *log_files.older_log_files().cend();
+    latest_file_id_ = log_files.older_log_files().back();
   } else {
     latest_file_id_ = 1;
   }
