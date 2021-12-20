@@ -127,7 +127,8 @@ absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
     log::Key key{};
     key.value_pos = header.is_tombstone()
                         ? absl::nullopt
-                        : log::ValuePos{header.value_len(), header.value_pos()};
+                        : absl::make_optional(log::ValuePos{
+                              header.value_len(), header.value_pos()});
     key.key_data.resize(header.key_len());
     file.read(reinterpret_cast<char*>(key.key_data.data()), header.key_len());
     if (file.fail()) {
