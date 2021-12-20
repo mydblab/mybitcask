@@ -2,7 +2,6 @@
 #define MYBITCASK_INUCLDE_INTERNAL_STORE_H_
 
 #include "io.h"
-#include "log.h"
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -14,7 +13,10 @@
 #include <vector>
 
 namespace mybitcask {
-
+namespace log {
+  class Reader;
+  class KeyIter;
+}
 struct Position;
 
 namespace store {
