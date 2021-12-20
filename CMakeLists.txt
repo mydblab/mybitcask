@@ -83,5 +83,7 @@ if(Gtest_FOUND)
   mybitcask_test(src/mybitcask_test.cc)
   mybitcask_test(src/timer_test.cc)
   mybitcask_test(src/filelock_test.cc)
+  mybitcask_test(src/store_hint_test.cc)
+
 
 endif()
