@@ -16,7 +16,28 @@ class LockFile {
   // Tries to lock a file but returns as soon as possible if already locked.
   virtual absl::StatusOr<bool> TryLock() = 0;
   // Unlocks the file.
-  virtual absl::Status Unlock() = 0;
+  // If delete_file is true, the file will be deleted when the file is
+  // successfully unlocked.
+  virtual absl::Status Unlock(bool delete_file = true) = 0;
+
+  virtual ~LockFile() = default;
+};
+
+class LockFileGuard {
+ public:
+  LockFileGuard(std::unique_ptr<LockFile>&& lock_file, bool delete_file = true)
+      : lock_file_(lock_file.release()), delete_file_(delete_file) {
+  }
+  
+  absl::Status Lock() {
+    return lock_file_->Lock();
+  }
+
+  ~LockFileGuard() { lock_file_->Unlock(delete_file_); }
+
+ private:
+  std::unique_ptr<LockFile> lock_file_;
+  bool delete_file_;
 };
 
 absl::StatusOr<std::unique_ptr<LockFile>> Open(

@@ -2,6 +2,8 @@
 #include "filelock.h"
 #include "windows_util.h"
 
+#include "ghc/filesystem.hpp"
+
 namespace mybitcask {
 namespace filelock {
 class LockFileWindows final : public LockFile {
@@ -35,7 +37,7 @@ class LockFileWindows final : public LockFile {
     return true;
   }
 
-  absl::Status Unlock() {
+  absl::Status Unlock(bool delete_file = true) {
     assertm(locked_, "Attempted to unlock already locked lockfile");
     OVERLAPPED ov = {0};
     if (!::UnlockFileEx(sh_.get(), 0, MAXDWORD, MAXDWORD, &ov)) {
@@ -43,12 +45,20 @@ class LockFileWindows final : public LockFile {
       return absl::InternalError(win::GetWindowsErrorMessage(error_code));
     }
     locked_ = false;
+    if (delete_file && sh_.Close()) {
+      std::error_code _ec;
+      // The file may be held by another lock, so the current delete operation may fail
+      ghc::filesystem::remove(filename_, _ec);
+    }
     return absl::OkStatus();
   }
 
  private:
-  LockFileWindows(bool locked, win::ScopedHandle&& sh)
-      : locked_(locked), sh_(std::move(sh)) {}
+  LockFileWindows(bool locked, win::ScopedHandle&& sh,
+                  const ghc::filesystem::path& filename)
+      : locked_(locked), sh_(std::move(sh)), filename_(filename) {}
+
+  const ghc::filesystem::path& filename_;
   bool locked_;
   win::ScopedHandle sh_;
 
@@ -70,7 +80,7 @@ absl::StatusOr<std::unique_ptr<LockFile>> Open(
   }
 
   return std::unique_ptr<LockFile>(
-      new LockFileWindows(false, std::move(handle)));
+      new LockFileWindows(false, std::move(handle), filename));
 }
 
 }  // namespace filelock
