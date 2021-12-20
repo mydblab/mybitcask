@@ -10,19 +10,24 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "ghc/filesystem.hpp"
 
 namespace mybitcask {
 namespace store {
 namespace hint {
 
 const std::string kErrRead = "failed to read hint entry";
+const std::string kErrLogFileNotExist = "log file not exist";
+
+struct EntryValuePos {
+  std::uint16_t value_len_;
+  std::uint32_t value_pos_;
+};
 
 struct Entry {
-  std::uint8_t key_len;
-  std::uint16_t value_len;
-  std::uint32_t value_pos;
-  std::unique_ptr<std::uint8_t[]> key_data;
-  bool is_tombstone;
+  std::vector<std::uint8_t> key;
+  // value_pos if empty means tombstone entry
+  absl::optional<EntryValuePos> value_pos;
 };
 
 class Generator {
