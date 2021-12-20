@@ -17,6 +17,8 @@ class LockFile {
   virtual absl::StatusOr<bool> TryLock() = 0;
   // Unlocks the file.
   virtual absl::Status Unlock() = 0;
+
+  virtual ~LockFile() = default;
 };
 
 absl::StatusOr<std::unique_ptr<LockFile>> Open(

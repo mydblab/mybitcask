@@ -49,6 +49,7 @@ class LockFileWindows final : public LockFile {
  private:
   LockFileWindows(bool locked, win::ScopedHandle&& sh)
       : locked_(locked), sh_(std::move(sh)) {}
+
   bool locked_;
   win::ScopedHandle sh_;
 
