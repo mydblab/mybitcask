@@ -50,7 +50,7 @@ absl::StatusOr<T> LogFiles::FoldKeys(
   for (auto& hint_file_id : hint_files()) {
     auto status = hint::FoldKeys(
         path() / HintFilename(hint_file_id), Void(),
-        [&](Void&& _, hint::Entry&& hint_entry) {
+        [&](Void&&, hint::Entry&& hint_entry) {
           acc = f(std::move(acc),
                   LogFiles::KeyEntry{hint_file_id, hint_entry.value_pos,
                                      hint_entry.value_len,

@@ -58,6 +58,8 @@ class Reader {
   absl::StatusOr<absl::optional<Entry>> Read(const Position& pos,
                                              std::uint8_t key_len) noexcept;
 
+  // Returns an key iterator selected from start_file_id to end_file_id
+  // (end_file_id included).
   KeyIter key_iter(store::file_id_t start_file_id,
                    store::file_id_t end_file_id) const;
 
@@ -134,13 +136,13 @@ struct Key {
   bool is_tombstone;
 };
 
-
 class KeyIter {
  public:
   KeyIter(store::Store* src, store::file_id_t start_file_id,
           store::file_id_t end_file_id);
 
-  
+  // Folds keys into an accumulator by applying an operation, returning the
+  // final result.
   template <typename T>
   absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
 

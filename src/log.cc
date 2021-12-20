@@ -31,22 +31,19 @@ namespace log {
 const std::uint16_t kTombstone = 0xFFFF;
 
 const std::uint32_t kCrc32Len = 4;
-const std::uint32_t kKeySzLen = 1;
-const std::uint32_t kValSzLen = 2;
-const std::uint32_t kHeaderLen = kCrc32Len + kKeySzLen + kValSzLen;
+const std::uint32_t kKeyLenLen = 1;
+const std::uint32_t kValLenLen = 2;
+const std::uint32_t kHeaderLen = kCrc32Len + kKeyLenLen + kValLenLen;
 
-// Header represents log entry header which contains CRC32C, key_size and
+// RawHeader represents log entry header which contains CRC32C, key_size and
 // value_size
-class Header final {
+class RawHeader final {
  public:
-  Header(std::uint8_t* const data) : data_(data) {}
+  RawHeader(std::uint8_t* const data) : data_(data) {}
 
   std::uint8_t key_len() const { return data_[kCrc32Len]; }
   std::uint16_t value_len() const {
-    if (is_tombstone()) {
-      return 0;
-    }
-    return raw_value_len();
+    return is_tombstone() ? 0 : raw_value_len();
   }
   bool is_tombstone() const { return raw_value_len() == kTombstone; }
 
@@ -55,7 +52,7 @@ class Header final {
   }
   void set_key_len(std::uint8_t key_len) { data_[kCrc32Len] = key_len; }
   void set_value_len(std::uint16_t value_len) {
-    absl::little_endian::Store16(&data_[kCrc32Len + kKeySzLen], value_len);
+    absl::little_endian::Store16(&data_[kCrc32Len + kKeyLenLen], value_len);
   }
   void set_tombstone() { set_value_len(kTombstone); }
 
@@ -68,14 +65,14 @@ class Header final {
 
   // Calculate crc32 from key_size, value_size and kv_buf
   std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const {
-    auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeySzLen + kValSzLen);
+    auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeyLenLen + kValLenLen);
     return crc32c::Extend(header_crc, kv_data,
                           static_cast<std::size_t>(key_len()) + value_len());
   }
 
  private:
   std::uint16_t raw_value_len() const {
-    return absl::little_endian::Load16(&data_[kCrc32Len + kKeySzLen]);
+    return absl::little_endian::Load16(&data_[kCrc32Len + kKeyLenLen]);
   }
 
   std::uint32_t crc32() const { return absl::little_endian::Load32(&data_[0]); }
@@ -148,7 +145,7 @@ absl::StatusOr<absl::optional<Entry>> Reader::Read(
   if (*read_len != entry_len) {
     return absl::InternalError(kErrBadEntry);
   }
-  Header header(entry.raw_ptr());
+  RawHeader header(entry.raw_ptr());
   entry.set_key_len(header.key_len());
   entry.set_value_len(header.value_len());
 
@@ -200,7 +197,7 @@ absl::Status Writer::AppendInner(
   std::uint32_t buf_len = kHeaderLen + key_len + value_len;
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
-  Header header(buf.get());
+  RawHeader header(buf.get());
   header.set_key_len(key_len);
   std::memcpy(&buf[kHeaderLen], key.data(), key_len);
 
@@ -257,7 +254,7 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       if (*read_len != kHeaderLen) {
         return absl::InternalError(kErrBadEntry);
       }
-      Header header(header_data.get());
+      RawHeader header(header_data.get());
 
       // read key
       offset += kHeaderLen;
