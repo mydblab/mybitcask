@@ -65,7 +65,8 @@ class RawHeader final {
 
   // Calculate crc32 from key_size, value_size and kv_buf
   std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const {
-    auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeyLenLen + kValLenLen);
+    auto header_crc =
+        crc32c::Crc32c(&data_[kCrc32Len], kKeyLenLen + kValLenLen);
     return crc32c::Extend(header_crc, kv_data,
                           static_cast<std::size_t>(key_len()) + value_len());
   }
@@ -234,16 +235,16 @@ KeyIter::KeyIter(store::Store* src, store::file_id_t start_file_id,
 
 template <typename T>
 absl::StatusOr<T> KeyIter::Fold(T init,
-                                std::function<T(T&&, Key&&)> f) noexcept {
+                                std::function<T(T&&, KeyIndex&&)> f) noexcept {
   auto acc = std::move(init);
   for (store::file_id_t file_id = start_file_id_; file_id <= end_file_id_;
        file_id++) {
     std::uint32_t offset = 0;
     while (true) {
       // read header
-      std::unique_ptr<std::uint8_t[]> header_data(new std::uint8_t[kHeaderLen]);
+      std::uint8_t header_data[kHeaderLen]{};
       auto read_len = src_->ReadAt(store::Position(file_id, offset),
-                                   {header_data.get(), kHeaderLen});
+                                   {header_data, kHeaderLen});
       if (!read_len.ok()) {
         return read_len.status();
       }
@@ -254,14 +255,13 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       if (*read_len != kHeaderLen) {
         return absl::InternalError(kErrBadEntry);
       }
-      RawHeader header(header_data.get());
+      RawHeader header(header_data);
 
       // read key
       offset += kHeaderLen;
-      std::unique_ptr<std::uint8_t[]> key_data(
-          new std::uint8_t[header.key_len()]);
+      std::vector<std::uint8_t> key_data(header.key_len());
       read_len = src_->ReadAt(store::Position(file_id, offset),
-                              {key_data.get(), header.key_len()});
+                              absl::MakeSpan(key_data));
       if (!read_len.ok()) {
         return read_len.status();
       }
@@ -269,10 +269,20 @@ absl::StatusOr<T> KeyIter::Fold(T init,
       if (*read_len != header.key_len()) {
         return absl::InternalError(kErrBadEntry);
       }
-      acc = f(std::move(acc), Key{file_id, header.key_len(), header.value_len(),
-                                  offset + header.key_len(),  // value_pos
-                                  std::move(key_data), header.is_tombstone()});
-      offset += header.key_len() + header.value_len();
+      offset += header.key_len();
+      acc = f(
+          std::move(acc),
+          KeyIndex{
+              file_id, Key{std::move(key_data),
+                           header.is_tombstone() ? absl::nullopt
+                                                 : absl::make_optional(ValuePos{
+                                                       header.value_len(),
+                                                       offset  // value_pos
+                                                   })
+
+                       }  // key
+          });
+      offset += header.value_len();
     }
   }
   return acc;

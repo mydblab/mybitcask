@@ -13,10 +13,13 @@
 #include <vector>
 
 namespace mybitcask {
+
 namespace log {
-  class Reader;
-  class KeyIter;
-}
+class Reader;
+class KeyIter;
+class KeyIndex;
+}  // namespace log
+
 struct Position;
 
 namespace store {
@@ -33,13 +36,6 @@ struct Position {
 
 class LogFiles {
  public:
-  struct KeyEntry {
-    file_id_t file_id;
-    std::uint32_t offset;
-    std::uint32_t length;
-    std::vector<std::uint8_t> key;
-  };
-
   LogFiles(const ghc::filesystem::path& path);
 
   const ghc::filesystem::path& path() const { return path_; }
@@ -54,8 +50,8 @@ class LogFiles {
   const std::vector<file_id_t>& hint_files() const { return hint_files_; }
 
   template <typename T>
-  absl::StatusOr<T> FoldKeys(
-      T init, std::function<T(T&&, KeyEntry&&)> f, log::Reader* log_reader) const noexcept;
+  absl::StatusOr<T> FoldKeys(T init, std::function<T(T&&, log::KeyIndex&&)> f,
+                             log::Reader* log_reader) const noexcept;
 
  private:
   ghc::filesystem::path path_;

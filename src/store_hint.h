@@ -1,6 +1,7 @@
 #ifndef MYBITCASK_SRC_STORE_HINT_H_
 #define MYBITCASK_SRC_STORE_HINT_H_
 
+#include "mybitcask/internal/log.h"
 #include "mybitcask/internal/store.h"
 #include "mybitcask/mybitcask.h"
 
@@ -17,18 +18,8 @@ namespace store {
 namespace hint {
 
 const std::string kErrRead = "failed to read hint entry";
+const std::string kErrWrite = "failed to write hint entry";
 const std::string kErrLogFileNotExist = "log file not exist";
-
-struct EntryValuePos {
-  std::uint16_t value_len_;
-  std::uint32_t value_pos_;
-};
-
-struct Entry {
-  std::vector<std::uint8_t> key;
-  // value_pos if empty means tombstone entry
-  absl::optional<EntryValuePos> value_pos;
-};
 
 class Generator {
  public:
@@ -43,7 +34,7 @@ class Generator {
 
 template <typename T>
 absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T&&, Entry&&)> f) noexcept;
+                           std::function<T(T&&, log::Key&&)> f) noexcept;
 
 }  // namespace hint
 }  // namespace store

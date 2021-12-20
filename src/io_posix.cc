@@ -19,7 +19,7 @@ class PosixMmapRandomAccessFileReader final : public RandomAccessReader {
   absl::StatusOr<std::size_t> ReadAt(
       std::uint64_t offset, absl::Span<std::uint8_t> dst) noexcept override {
     std::size_t offset_size = static_cast<std::size_t>(offset);
-    if (offset_size >= length_ - 1) {
+    if (offset_size + dst.size() > length_) {
       return 0;
     }
     auto actual_size = std::min(length_ - offset_size, dst.size());

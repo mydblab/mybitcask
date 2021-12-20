@@ -127,13 +127,20 @@ class Entry final {
       const Position& pos, std::uint8_t key_len) noexcept;
 };
 
-struct Key {
-  store::file_id_t file_id;
-  std::uint8_t key_len;
+struct ValuePos {
   std::uint16_t value_len;
   std::uint32_t value_pos;
-  std::unique_ptr<std::uint8_t[]> key_data;
-  bool is_tombstone;
+};
+
+struct Key {
+  std::vector<std::uint8_t> key_data;
+  // value_pos if empty means tombstone entry
+  absl::optional<ValuePos> value_pos;
+};
+
+struct KeyIndex {
+  store::file_id_t file_id;
+  Key key;
 };
 
 class KeyIter {
@@ -144,7 +151,7 @@ class KeyIter {
   // Folds keys into an accumulator by applying an operation, returning the
   // final result.
   template <typename T>
-  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
+  absl::StatusOr<T> Fold(T init, std::function<T(T&&, KeyIndex&&)> f) noexcept;
 
  private:
   store::Store* src_;

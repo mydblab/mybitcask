@@ -68,29 +68,46 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
     return absl::InternalError(kErrRead);
   }
 
-  log_reader_->key_iter(file_id, file_id)
-      .Fold<Void>(Void(), [&](Void&&, log::Key&& key) { return Void(); });
-
-  /*
+  auto keys =
+      log_reader_->key_iter(file_id, file_id)
+          .Fold<std::vector<log::KeyIndex>>(
+              std::vector<log::KeyIndex>(),
+              [&](std::vector<log::KeyIndex>&& acc, log::KeyIndex&& key_idx) {
+                acc.push_back(std::move(key_idx));
+                return acc;
+              });
+  if (!keys.ok()) {
+    return keys.status();
+  }
+  for (auto& key_idx : *keys) {
     std::uint8_t header_data[kHeaderLen]{};
-        RawHeader header(header_data);
-        // write header
-        hint_file.write(reinterpret_cast<char*>(header_data), kHeaderLen);
+    RawHeader header(header_data);
+    header.set_key_len(key_idx.key.key_data.size());
+    if (key_idx.key.value_pos.has_value()) {
+      header.set_value_len(key_idx.key.value_pos->value_len);
+      header.set_value_pos(key_idx.key.value_pos->value_pos);
+    } else {
+      header.set_tombstone();
+    }
 
-        if (hint_file.eof()) {
-          return acc;
-        }
-        if (hint_file.fail()) {
-          return absl::InternalError(kErrRead);
-        }
+    // write header
+    hint_file.write(reinterpret_cast<char*>(header_data), kHeaderLen);
 
-  */
-  return absl::Status();
+    if (hint_file.fail()) {
+      return absl::InternalError(kErrWrite);
+    }
+    hint_file.write(reinterpret_cast<char*>(key_idx.key.key_data.data()),
+                    key_idx.key.key_data.size());
+    if (hint_file.fail()) {
+      return absl::InternalError(kErrWrite);
+    }
+  }
+  return absl::OkStatus();
 }
 
 template <typename T>
 absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T&&, Entry&&)> f) noexcept {
+                           std::function<T(T&&, log::Key&&)> f) noexcept {
   std::ifstream file(hint_filepath.data(), std::ios::binary | std::ios::in);
 
   if (!file) {
@@ -107,16 +124,16 @@ absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
       return absl::InternalError(kErrRead);
     }
     RawHeader header(header_data);
-    Entry entry{};
-    entry.value_pos = header.is_tombstone() ? absl::nullopt
-                                            : EntryValuePos{header.value_len(),
-                                                            header.value_pos()};
-    entry.key.resize(header.key_len());
-    file.read(reinterpret_cast<char*>(entry.key.data()), header.key_len());
+    log::Key key{};
+    key.value_pos = header.is_tombstone()
+                        ? absl::nullopt
+                        : ValuePos{header.value_len(), header.value_pos()};
+    key.key_data.resize(header.key_len());
+    file.read(reinterpret_cast<char*>(key.key_data.data()), header.key_len());
     if (file.fail()) {
       return absl::InternalError(kErrRead);
     }
-    acc = f(std::move(acc), std::move(entry));
+    acc = f(std::move(acc), std::move(key));
   }
   return acc;
 }

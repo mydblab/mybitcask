@@ -183,14 +183,14 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
 
   // Append entry with an oversized key
   status =
-      log_writer.Append(test::StrSpan(test::RandomString(0xFF, 0xFF + 100)),
+      log_writer.Append(test::StrSpan(test::RandomString(0x100, 0x100 + 100)),
                         test::StrSpan("not care"), [](Position) {});
   EXPECT_FALSE(status.ok()) << "append entry with an oversized key should fail";
   EXPECT_EQ(status.message(), kErrBadKeyLength)
       << "append entry with an oversized key should return kErrBadKeyLength";
 
   status = log_writer.AppendTombstone(
-      test::StrSpan(test::RandomString(0xFF, 0xFF + 100)), [](Position) {});
+      test::StrSpan(test::RandomString(0x100, 0x100 + 100)), [](Position) {});
   EXPECT_FALSE(status.ok())
       << "append tombstone entry with an oversized key should fail";
   EXPECT_EQ(status.message(), kErrBadKeyLength)
@@ -267,13 +267,12 @@ TEST(KeyIterTest, Fold) {
   };
 
   auto fold_keys = key_iter.Fold<std::vector<TestKey>>(
-      std::vector<TestKey>(), [](std::vector<TestKey>&& acc, Key&& key) {
-        auto k = std::string(reinterpret_cast<char*>(key.key_data.release()),
-                             key.key_len);
-        acc.push_back(TestKey{k, key.is_tombstone});
+      std::vector<TestKey>(),
+      [](std::vector<TestKey>&& acc, KeyIndex&& key_idx) {
+        std::string k(key_idx.key.key_data.begin(), key_idx.key.key_data.end());
+        acc.push_back(TestKey{k, !key_idx.key.value_pos.has_value()});
         return acc;
       });
-
 
   ASSERT_TRUE(fold_keys.ok())
       << "Failed to fold keys; err: " << fold_keys.status().message();

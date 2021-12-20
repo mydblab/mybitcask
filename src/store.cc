@@ -43,9 +43,9 @@ LogFiles::LogFiles(const ghc::filesystem::path& path)
 struct Void {};
 
 template <typename T>
-absl::StatusOr<T> LogFiles::FoldKeys(
-    T init, std::function<T(T&&, LogFiles::KeyEntry&&)> f,
-    log::Reader* log_reader) const noexcept {
+absl::StatusOr<T> LogFiles::FoldKeys(T init,
+                                     std::function<T(T&&, log::KeyIndex&&)> f,
+                                     log::Reader* log_reader) const noexcept {
   auto acc = std::move(init);
   for (auto& hint_file_id : hint_files()) {
     auto status = hint::FoldKeys(
