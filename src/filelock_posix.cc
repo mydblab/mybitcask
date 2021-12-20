@@ -2,6 +2,7 @@
 #include <sys/file.h>
 #include <cerrno>
 #include <cstring>
+#include "ghc/filesystem.hpp"
 
 #include "assert.h"
 #include "filelock.h"
@@ -38,6 +39,10 @@ class LockFilePosix final : public LockFile {
     assertm(locked_, "Attempted to unlock already locked lockfile");
     if (flock(fd_, LOCK_UN) >= 0) {
       locked_ = false;
+      if (delete_file) {
+        std::error_code _ec;
+        ghc::filesystem::remove(filename_, _ec);
+      }
       return absl::OkStatus();
     }
     return absl::InternalError(std::strerror(errno));
@@ -46,7 +51,10 @@ class LockFilePosix final : public LockFile {
   LockFilePosix() = delete;
 
  private:
-  LockFilePosix(bool locked, int fd) : locked_(locked), fd_(fd) {}
+  LockFilePosix(bool locked, int fd, const ghc::filesystem::path& filename)
+      : locked_(locked), fd_(fd), filename_(filename) {}
+
+  const ghc::filesystem::path& filename_;
   bool locked_;
   int fd_;
 
@@ -61,7 +69,7 @@ absl::StatusOr<std::unique_ptr<LockFile>> Open(
   if (fd < 0) {
     return absl::InternalError(io::kErrOpenFailed);
   }
-  return std::unique_ptr<LockFile>(new LockFilePosix(false, fd));
+  return std::unique_ptr<LockFile>(new LockFilePosix(false, fd, filename));
 }
 
 }  // namespace filelock
