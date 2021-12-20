@@ -44,21 +44,34 @@ struct Void {};
 
 template <typename T>
 absl::StatusOr<T> LogFiles::FoldKeys(
-    T init, std::function<T(T&&, LogFiles::KeyEntry&&)> f) const noexcept {
+    T init, std::function<T(T&&, LogFiles::KeyEntry&&)> f,
+    log::Reader* log_reader) const noexcept {
   auto acc = std::move(init);
   for (auto& hint_file_id : hint_files()) {
     auto status = hint::FoldKeys(
         path() / HintFilename(hint_file_id), Void(),
         [&](Void&&, hint::Entry&& hint_entry) {
           acc = f(std::move(acc),
-            LogFiles::KeyEntry{hint_file_id, hint_entry.offset,
-                               hint_entry.entry_sz, std::move(hint_entry.key)});
+                  LogFiles::KeyEntry{hint_file_id, hint_entry.value_pos,
+                                     hint_entry.value_len,
+                                     std::move(hint_entry.key)});
           return Void();
         });
     if (!status.ok()) {
       return status;
     }
   }
+  if (!active_log_files_.empty()) {
+    auto key_iter = log_reader->key_iter(active_log_files_.front(),
+                                         active_log_files_.back());
+    auto status = key_iter.Fold(Void(), [&](Void&& _, log::Key&& key) {
+      acc = f(std::move(acc),
+              LogFiles::KeyEntry{key.file_id, key.value_pos, key.value_len,
+                                 std::move(key.key_data)});
+      return Void();
+    })
+  }
+
   return acc;
 }
 

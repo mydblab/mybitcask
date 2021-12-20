@@ -4,13 +4,13 @@
 namespace mybitcask {
 namespace timer {
 TEST(Timer, SetInterval) {
-  auto c = 1;
-  auto stop = SetInterval([&]() { c++; }, std::chrono::milliseconds(100));
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  auto c = 0;
+  auto stop = SetInterval([&]() { c++; }, std::chrono::milliseconds(200));
+  std::this_thread::sleep_for(std::chrono::milliseconds(420));
   stop();
-  ASSERT_EQ(c, 5);
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_EQ(c, 5);
+  ASSERT_EQ(c, 2);
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  ASSERT_EQ(c, 2);
 }
 }  // namespace timer
 }  // namespace mybitcask

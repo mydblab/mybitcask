@@ -27,6 +27,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 if (WIN32)
   target_sources(${PROJECT_NAME} PRIVATE src/io_windows.cc)
+  target_sources(${PROJECT_NAME} PRIVATE src/filelock_windows.cc)
 else (WIN32)
   target_sources(${PROJECT_NAME} PRIVATE src/io_posix.cc)
   target_sources(${PROJECT_NAME} PRIVATE src/filelock_posix.cc)

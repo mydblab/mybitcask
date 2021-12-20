@@ -2,6 +2,7 @@
 #define MYBITCASK_INUCLDE_INTERNAL_STORE_H_
 
 #include "io.h"
+#include "log.h"
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -52,7 +53,7 @@ class LogFiles {
 
   template <typename T>
   absl::StatusOr<T> FoldKeys(
-      T init, std::function<T(T&&, KeyEntry&&)> f) const noexcept;
+      T init, std::function<T(T&&, KeyEntry&&)> f, log::Reader* log_reader) const noexcept;
 
  private:
   ghc::filesystem::path path_;
