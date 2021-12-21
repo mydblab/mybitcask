@@ -17,7 +17,7 @@ namespace mybitcask {
 namespace log {
 class Reader;
 class KeyIter;
-class KeyIndex;
+class Key;
 }  // namespace log
 
 struct Position;
@@ -50,7 +50,7 @@ class LogFiles {
   const std::vector<file_id_t>& hint_files() const { return hint_files_; }
 
   template <typename T>
-  absl::StatusOr<T> FoldKeys(T init, std::function<T(T&&, log::KeyIndex&&)> f,
+  absl::StatusOr<T> FoldKeys(T init, std::function<T(T&&, log::Key&&)> f,
                              log::Reader* log_reader) const noexcept;
 
  private:

@@ -73,7 +73,7 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
   for (auto& key : *keys) {
     std::uint8_t header_data[kHeaderLen]{};
     RawHeader header(header_data);
-    header.set_key_len(key.key_data.size());
+    header.set_key_len(static_cast<std::uint8_t>(key.key_data.size()));
     if (key.value_pos.has_value()) {
       header.set_value_len(key.value_pos->value_len);
       header.set_value_pos(key.value_pos->value_pos);
@@ -88,7 +88,7 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
       return absl::InternalError(kErrWrite);
     }
     hint_file.write(reinterpret_cast<char*>(key.key_data.data()),
-                      key.key_data.size());
+                    key.key_data.size());
     if (hint_file.fail()) {
       return absl::InternalError(kErrWrite);
     }
