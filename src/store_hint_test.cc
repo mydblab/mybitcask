@@ -25,7 +25,8 @@ TEST(HintTest, GenerateAndFold) {
   }
   Generator gen(&log_reader, tmpdir->path());
 
-  for (auto file_id : store::LogFiles(tmpdir->path()).active_log_files()) {
+  store::LogFiles log_files(tmpdir->path());
+  for (auto file_id : log_files.active_log_files()) {
     ASSERT_TRUE(gen.Generate(file_id).ok());
   }
   struct Void {};
@@ -34,7 +35,8 @@ TEST(HintTest, GenerateAndFold) {
     bool is_tombstone;
   };
   std::vector<TestKey> fold_keys;
-  for (auto file_id : store::LogFiles(tmpdir->path()).hint_files()) {
+  log_files = store::LogFiles(tmpdir->path());
+  for (auto file_id : log_files.hint_files()) {
     auto status =
         KeyIter(&tmpdir->path(), file_id)
             .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {

@@ -35,9 +35,9 @@ LogFiles::LogFiles(const ghc::filesystem::path& path)
   std::sort(hint_files_.begin(), hint_files_.end());
 
   active_log_files_ = std::vector<file_id_t>(
-      log_files.begin(), log_files.begin() + hint_files_.size());
-  older_log_files_ = std::vector<file_id_t>(
       log_files.begin() + hint_files_.size(), log_files.end());
+  older_log_files_ = std::vector<file_id_t>(
+      log_files.begin(), log_files.begin() + hint_files_.size());
 }
 
 struct Void {};
@@ -48,12 +48,11 @@ absl::StatusOr<T> LogFiles::FoldKeys(T init,
                                      log::Reader* log_reader) const noexcept {
   auto&& acc = std::move(init);
   for (auto& hint_file_id : hint_files()) {
-    auto status =
-        hint::KeyIter(&path(), hint_file_id)
-            .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
-              acc = f(std::move(acc), std::move(key));
-              return Void();
-            });
+    auto status = hint::KeyIter(&path(), hint_file_id)
+                      .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
+                        acc = f(std::move(acc), std::move(key));
+                        return Void();
+                      });
     if (!status.ok()) {
       return status;
     }

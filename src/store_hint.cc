@@ -90,6 +90,7 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
       return absl::InternalError(kErrWrite);
     }
   }
+  hint_file.flush();
   return absl::OkStatus();
 }
 
