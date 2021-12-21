@@ -95,42 +95,7 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
 
 KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
     : path_(path), hint_file_id_(hint_file_id) {}
-/*
-template <typename T>
-absl::StatusOr<T> KeyIter::Fold(T init,
-                                std::function<T(T&&, log::Key&&)> f) noexcept {
-  std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
-                          std::ios::binary | std::ios::in);
-  if (!hint_file) {
-    return absl::InternalError(kErrRead);
-  }
-  auto&& acc = std::move(init);
-  while (true) {
-    std::uint8_t header_data[header_len()]{};
-    hint_file.read(reinterpret_cast<char*>(header_data), header_len());
-    if (hint_file.eof()) {
-      return acc;
-    }
-    if (hint_file.fail()) {
-      return absl::InternalError(kErrRead);
-    }
-    RawHeader header(header_data);
-    log::Key key{};
-    key.value_pos = header.is_tombstone()
-                        ? absl::nullopt
-                        : absl::make_optional(log::ValuePos{
-                              header.value_len(), header.value_pos()});
-    key.key_data.resize(header.key_len());
-    hint_file.read(reinterpret_cast<char*>(key.key_data.data()),
-                   header.key_len());
-    if (hint_file.fail()) {
-      return absl::InternalError(kErrRead);
-    }
-    acc = f(std::move(acc), std::move(key));
-  }
-  return acc;
-}
-*/
+
 }  // namespace hint
 }  // namespace store
 }  // namespace mybitcask

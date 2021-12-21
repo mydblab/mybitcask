@@ -13,8 +13,7 @@ class GenerateHint {
  public:
   GenerateHint(log::Reader* log_reader, const ghc::filesystem::path& db_path);
 
-  template <class Rep, class Period>
-  void Start(const std::chrono::duration<Rep, Period>& interval);
+  void Start(std::size_t interval_seconds);
 
   ~GenerateHint();
 
