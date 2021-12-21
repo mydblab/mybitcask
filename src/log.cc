@@ -30,56 +30,46 @@ namespace log {
 // this case the `val` in this log entry is empty
 const std::uint16_t kTombstone = 0xFFFF;
 
-const std::uint32_t kCrc32Len = 4;
-const std::uint32_t kKeyLenLen = 1;
-const std::uint32_t kValLenLen = 2;
-const std::uint32_t kHeaderLen = kCrc32Len + kKeyLenLen + kValLenLen;
+RawHeader::RawHeader(std::uint8_t* const data) : data_(data) {}
 
-// RawHeader represents log entry header which contains CRC32C, key_size and
-// value_size
-class RawHeader final {
- public:
-  RawHeader(std::uint8_t* const data) : data_(data) {}
+std::uint8_t RawHeader::key_len() const { return data_[kCrc32Len]; }
+std::uint16_t RawHeader::value_len() const {
+  return is_tombstone() ? 0 : raw_value_len();
+}
+bool RawHeader::is_tombstone() const { return raw_value_len() == kTombstone; }
 
-  std::uint8_t key_len() const { return data_[kCrc32Len]; }
-  std::uint16_t value_len() const {
-    return is_tombstone() ? 0 : raw_value_len();
-  }
-  bool is_tombstone() const { return raw_value_len() == kTombstone; }
+void RawHeader::set_crc32(std::uint32_t crc32) {
+  absl::little_endian::Store32(&data_[0], crc32);
+}
+void RawHeader::set_key_len(std::uint8_t key_len) {
+  data_[kCrc32Len] = key_len;
+}
+void RawHeader::set_value_len(std::uint16_t value_len) {
+  absl::little_endian::Store16(&data_[kCrc32Len + kKeyLenLen], value_len);
+}
+void RawHeader::set_tombstone() { set_value_len(kTombstone); }
 
-  void set_crc32(std::uint32_t crc32) {
-    absl::little_endian::Store32(&data_[0], crc32);
-  }
-  void set_key_len(std::uint8_t key_len) { data_[kCrc32Len] = key_len; }
-  void set_value_len(std::uint16_t value_len) {
-    absl::little_endian::Store16(&data_[kCrc32Len + kKeyLenLen], value_len);
-  }
-  void set_tombstone() { set_value_len(kTombstone); }
+std::uint8_t* RawHeader::data() { return data_; }
 
-  std::uint8_t* data() { return data_; }
+// Returns true if the crc is correct, false if it's incorrect
+bool RawHeader::CheckCrc(const std::uint8_t* kv_data) const {
+  return crc32() == calc_actual_crc(kv_data);
+}
 
-  // Returns true if the crc is correct, false if it's incorrect
-  bool check_crc(const std::uint8_t* kv_data) const {
-    return crc32() == calc_actual_crc(kv_data);
-  }
+// Calculate crc32 from key_size, value_size and kv_buf
+std::uint32_t RawHeader::calc_actual_crc(const std::uint8_t* kv_data) const {
+  auto header_crc = crc32c::Crc32c(&data_[kCrc32Len], kKeyLenLen + kValLenLen);
+  return crc32c::Extend(header_crc, kv_data,
+                        static_cast<std::size_t>(key_len()) + value_len());
+}
 
-  // Calculate crc32 from key_size, value_size and kv_buf
-  std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const {
-    auto header_crc =
-        crc32c::Crc32c(&data_[kCrc32Len], kKeyLenLen + kValLenLen);
-    return crc32c::Extend(header_crc, kv_data,
-                          static_cast<std::size_t>(key_len()) + value_len());
-  }
+std::uint16_t RawHeader::raw_value_len() const {
+  return absl::little_endian::Load16(&data_[kCrc32Len + kKeyLenLen]);
+}
 
- private:
-  std::uint16_t raw_value_len() const {
-    return absl::little_endian::Load16(&data_[kCrc32Len + kKeyLenLen]);
-  }
-
-  std::uint32_t crc32() const { return absl::little_endian::Load32(&data_[0]); }
-
-  std::uint8_t* const data_;
-};
+std::uint32_t RawHeader::crc32() const {
+  return absl::little_endian::Load32(&data_[0]);
+}
 
 Entry::Entry(std::uint32_t length)
     : ptr_(new uint8_t[length]), key_len_(0), value_len_(0) {}
@@ -151,7 +141,7 @@ absl::StatusOr<absl::optional<Entry>> Reader::Read(
   entry.set_value_len(header.value_len());
 
   // check crc
-  if (checksum_ && !header.check_crc(entry.key().data())) {
+  if (checksum_ && !header.CheckCrc(entry.key().data())) {
     return absl::InternalError(kErrBadEntry);
   }
   if (header.is_tombstone()) {
@@ -230,56 +220,6 @@ absl::Status Writer::AppendInner(
 
 KeyIter::KeyIter(store::Store* src, store::file_id_t log_file_id)
     : src_(src), log_file_id_(log_file_id) {}
-
-template <typename T>
-absl::StatusOr<T> KeyIter::Fold(T init,
-                                std::function<T(T&&, Key&&)> f) noexcept {
-  auto&& acc = std::move(init);
-
-  std::uint32_t offset = 0;
-  while (true) {
-    // read header
-    std::uint8_t header_data[kHeaderLen]{};
-    auto read_len = src_->ReadAt(store::Position(log_file_id_, offset),
-                                 {header_data, kHeaderLen});
-    if (!read_len.ok()) {
-      return read_len.status();
-    }
-    if (*read_len == 0) {
-      // end of file
-      break;
-    }
-    if (*read_len != kHeaderLen) {
-      return absl::InternalError(kErrBadEntry);
-    }
-    RawHeader header(header_data);
-
-    // read key
-    offset += kHeaderLen;
-    std::vector<std::uint8_t> key_data(header.key_len());
-    read_len = src_->ReadAt(store::Position(log_file_id_, offset),
-                            absl::MakeSpan(key_data));
-    if (!read_len.ok()) {
-      return read_len.status();
-    }
-
-    if (*read_len != header.key_len()) {
-      return absl::InternalError(kErrBadEntry);
-    }
-    offset += header.key_len();
-    acc = f(std::move(acc),
-            Key{std::move(key_data), header.is_tombstone()
-                                         ? absl::nullopt
-                                         : absl::make_optional(ValuePos{
-                                               header.value_len(),
-                                               offset  // value_pos
-                                           })
-
-            });
-    offset += header.value_len();
-  }
-  return acc;
-}
 
 }  // namespace log
 }  // namespace mybitcask

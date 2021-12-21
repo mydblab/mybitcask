@@ -28,6 +28,40 @@ const std::string kErrBadKeyLength = "key length must be between (0, 255]";
 const std::string kErrBadValueLength =
     "value length must be between (0, 65535)";
 
+const std::uint32_t kCrc32Len = 4;
+const std::uint32_t kKeyLenLen = 1;
+const std::uint32_t kValLenLen = 2;
+const std::uint32_t kHeaderLen = kCrc32Len + kKeyLenLen + kValLenLen;
+
+// RawHeader represents log entry header which contains CRC32C, key_size and
+// value_size
+class RawHeader final {
+ public:
+  RawHeader(std::uint8_t* const data);
+
+  std::uint8_t key_len() const;
+  std::uint16_t value_len() const;
+  bool is_tombstone() const;
+  void set_crc32(std::uint32_t crc32);
+  void set_key_len(std::uint8_t key_len);
+  void set_value_len(std::uint16_t value_len);
+  void set_tombstone();
+  std::uint8_t* data();
+
+  // Returns true if the crc is correct, false if it's incorrect
+  bool CheckCrc(const std::uint8_t* kv_data) const;
+
+  // Calculate crc32 from key_size, value_size and kv_buf
+  std::uint32_t calc_actual_crc(const std::uint8_t* kv_data) const;
+
+ private:
+  std::uint16_t raw_value_len() const;
+
+  std::uint32_t crc32() const;
+
+  std::uint8_t* const data_;
+};
+
 class Entry;
 
 class KeyIter;
@@ -143,7 +177,53 @@ class KeyIter {
   // Folds keys into an accumulator by applying an operation, returning the
   // final result.
   template <typename T>
-  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
+  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept {
+    auto&& acc = std::move(init);
+
+    std::uint32_t offset = 0;
+    while (true) {
+      // read header
+      std::uint8_t header_data[kHeaderLen]{};
+      auto read_len = src_->ReadAt(store::Position(log_file_id_, offset),
+                                   {header_data, kHeaderLen});
+      if (!read_len.ok()) {
+        return read_len.status();
+      }
+      if (*read_len == 0) {
+        // end of file
+        break;
+      }
+      if (*read_len != kHeaderLen) {
+        return absl::InternalError(kErrBadEntry);
+      }
+      RawHeader header(header_data);
+
+      // read key
+      offset += kHeaderLen;
+      std::vector<std::uint8_t> key_data(header.key_len());
+      read_len = src_->ReadAt(store::Position(log_file_id_, offset),
+                              absl::MakeSpan(key_data));
+      if (!read_len.ok()) {
+        return read_len.status();
+      }
+
+      if (*read_len != header.key_len()) {
+        return absl::InternalError(kErrBadEntry);
+      }
+      offset += header.key_len();
+      acc = f(std::move(acc),
+              Key{std::move(key_data), header.is_tombstone()
+                                           ? absl::nullopt
+                                           : absl::make_optional(ValuePos{
+                                                 header.value_len(),
+                                                 offset  // value_pos
+                                             })
+
+              });
+      offset += header.value_len();
+    }
+    return acc;
+  }
 
  private:
   store::Store* src_;

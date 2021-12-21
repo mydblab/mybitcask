@@ -1,7 +1,7 @@
 #include "store_hint.h"
 #include "store_filename.h"
 
-#include <fstream>
+#include "absl/base/internal/endian.h"
 
 namespace mybitcask {
 namespace store {
@@ -12,38 +12,35 @@ namespace hint {
 // kTombstone(0xFFFF) then this record is a tombstone record
 const std::uint16_t kTombstone = 0xFFFF;
 
-const std::uint32_t kKeyLenLen = 1;
+/* const std::uint32_t kKeyLenLen = 1;
 const std::uint32_t kValLenLen = 2;
 const std::uint32_t kValPosLen = 4;
 const std::uint32_t kHeaderLen = kKeyLenLen + kValLenLen + kValPosLen;
+*/
 
-class RawHeader final {
- public:
-  RawHeader(std::uint8_t* const data) : data_(data) {}
+RawHeader::RawHeader(std::uint8_t* const data) : data_(data) {}
 
-  std::uint8_t key_len() const { return data_[0]; }
-  std::uint16_t value_len() const {
-    return is_tombstone() ? 0 : raw_value_len();
-  }
-  std::uint32_t value_pos() const {
-    return absl::little_endian::Load32(&data_[kKeyLenLen + kValLenLen]);
-  }
-  bool is_tombstone() const { return raw_value_len() == kTombstone; }
-  void set_key_len(std::uint8_t key_len) { data_[0] = key_len; }
-  void set_value_len(std::uint16_t value_len) {
-    absl::little_endian::Store16(&data_[kKeyLenLen], value_len);
-  }
-  void set_value_pos(std::uint32_t value_pos) const {
-    absl::little_endian::Store32(&data_[kKeyLenLen + kValLenLen], value_pos);
-  }
-  void set_tombstone() { set_value_len(kTombstone); }
+std::uint8_t RawHeader::key_len() const { return data_[0]; }
+std::uint16_t RawHeader::value_len() const {
+  return is_tombstone() ? 0 : raw_value_len();
+}
 
- private:
-  std::uint16_t raw_value_len() const {
-    return absl::little_endian::Load16(&data_[kKeyLenLen]);
-  }
-  std::uint8_t* const data_;
-};
+std::uint32_t RawHeader::value_pos() const {
+  return absl::little_endian::Load32(&data_[kKeyLenLen + kValLenLen]);
+}
+bool RawHeader::is_tombstone() const { return raw_value_len() == kTombstone; }
+void RawHeader::set_key_len(std::uint8_t key_len) { data_[0] = key_len; }
+void RawHeader::set_value_len(std::uint16_t value_len) {
+  absl::little_endian::Store16(&data_[kKeyLenLen], value_len);
+}
+void RawHeader::set_value_pos(std::uint32_t value_pos) {
+  absl::little_endian::Store32(&data_[kKeyLenLen + kValLenLen], value_pos);
+}
+void RawHeader::set_tombstone() { set_value_len(kTombstone); }
+
+std::uint16_t RawHeader::raw_value_len() const {
+  return absl::little_endian::Load16(&data_[kKeyLenLen]);
+}
 
 Generator::Generator(log::Reader* log_reader, const ghc::filesystem::path& path)
     : log_reader_(log_reader), path_(path) {}
@@ -98,23 +95,23 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
 
 KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
     : path_(path), hint_file_id_(hint_file_id) {}
-
+/*
 template <typename T>
 absl::StatusOr<T> KeyIter::Fold(T init,
                                 std::function<T(T&&, log::Key&&)> f) noexcept {
-  std::ifstream hint_file(path_ / HintFilename(hint_file_id),
+  std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
                           std::ios::binary | std::ios::in);
   if (!hint_file) {
     return absl::InternalError(kErrRead);
   }
   auto&& acc = std::move(init);
   while (true) {
-    std::uint8_t header_data[kHeaderLen]{};
-    hint_file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
-    if (file.eof()) {
+    std::uint8_t header_data[header_len()]{};
+    hint_file.read(reinterpret_cast<char*>(header_data), header_len());
+    if (hint_file.eof()) {
       return acc;
     }
-    if (file.fail()) {
+    if (hint_file.fail()) {
       return absl::InternalError(kErrRead);
     }
     RawHeader header(header_data);
@@ -126,14 +123,14 @@ absl::StatusOr<T> KeyIter::Fold(T init,
     key.key_data.resize(header.key_len());
     hint_file.read(reinterpret_cast<char*>(key.key_data.data()),
                    header.key_len());
-    if (file.fail()) {
+    if (hint_file.fail()) {
       return absl::InternalError(kErrRead);
     }
     acc = f(std::move(acc), std::move(key));
   }
   return acc;
 }
-
+*/
 }  // namespace hint
 }  // namespace store
 }  // namespace mybitcask
