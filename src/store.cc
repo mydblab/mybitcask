@@ -51,7 +51,7 @@ absl::StatusOr<T> LogFiles::FoldKeys(T init,
     auto status =
         hint::KeyIter(&path(), hint_file_id)
             .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
-              acc = f(std::move(acc), log::Key{hint_file_id, std::move(key)});
+              acc = f(std::move(acc), std::move(key));
               return Void();
             });
     if (!status.ok()) {

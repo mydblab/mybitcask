@@ -110,7 +110,7 @@ absl::StatusOr<T> KeyIter::Fold(T init,
   auto&& acc = std::move(init);
   while (true) {
     std::uint8_t header_data[kHeaderLen]{};
-    file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
+    hint_file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
     if (file.eof()) {
       return acc;
     }
@@ -124,7 +124,8 @@ absl::StatusOr<T> KeyIter::Fold(T init,
                         : absl::make_optional(log::ValuePos{
                               header.value_len(), header.value_pos()});
     key.key_data.resize(header.key_len());
-    file.read(reinterpret_cast<char*>(key.key_data.data()), header.key_len());
+    hint_file.read(reinterpret_cast<char*>(key.key_data.data()),
+                   header.key_len());
     if (file.fail()) {
       return absl::InternalError(kErrRead);
     }
