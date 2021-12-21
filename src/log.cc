@@ -160,22 +160,21 @@ absl::StatusOr<absl::optional<Entry>> Reader::Read(
   return entry;
 }
 
-KeyIter Reader::key_iter(store::file_id_t start_file_id,
-                         store::file_id_t end_file_id) const {
-  return KeyIter(src_, start_file_id, end_file_id);
+KeyIter Reader::key_iter(store::file_id_t log_file_id) const {
+  return KeyIter(src_, log_file_id);
 }
 
 Writer::Writer(store::Store* dest) : dest_(dest) {}
 
 absl::Status Writer::AppendTombstone(
     absl::Span<const std::uint8_t> key,
-    std::function<void(Position)> success_callback) noexcept {
+    const std::function<void(Position)>& success_callback) noexcept {
   return AppendInner(key, {}, success_callback);
 }
 
 absl::Status Writer::Append(
     absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
-    std::function<void(Position)> success_callback) noexcept {
+    const std::function<void(Position)>& success_callback) noexcept {
   if (value.size() == 0) {
     return absl::InternalError(kErrBadValueLength);
   }
@@ -184,7 +183,7 @@ absl::Status Writer::Append(
 
 absl::Status Writer::AppendInner(
     absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
-    std::function<void(Position)> success_callback) noexcept {
+    const std::function<void(Position)>& success_callback) noexcept {
   if (key.size() == 0 || key.size() > 0xFF) {
     return absl::InternalError(kErrBadKeyLength);
   }
@@ -229,61 +228,55 @@ absl::Status Writer::AppendInner(
   return absl::OkStatus();
 }
 
-KeyIter::KeyIter(store::Store* src, store::file_id_t start_file_id,
-                 store::file_id_t end_file_id)
-    : src_(src), start_file_id_(start_file_id), end_file_id_(end_file_id) {}
+KeyIter::KeyIter(store::Store* src, store::file_id_t log_file_id)
+    : src_(src), log_file_id_(log_file_id) {}
 
 template <typename T>
 absl::StatusOr<T> KeyIter::Fold(T init,
-                                std::function<T(T&&, KeyIndex&&)> f) noexcept {
-  auto acc = std::move(init);
-  for (store::file_id_t file_id = start_file_id_; file_id <= end_file_id_;
-       file_id++) {
-    std::uint32_t offset = 0;
-    while (true) {
-      // read header
-      std::uint8_t header_data[kHeaderLen]{};
-      auto read_len = src_->ReadAt(store::Position(file_id, offset),
-                                   {header_data, kHeaderLen});
-      if (!read_len.ok()) {
-        return read_len.status();
-      }
-      if (*read_len == 0) {
-        // end of file
-        break;
-      }
-      if (*read_len != kHeaderLen) {
-        return absl::InternalError(kErrBadEntry);
-      }
-      RawHeader header(header_data);
+                                std::function<T(T&&, Key&&)> f) noexcept {
+  auto&& acc = std::move(init);
 
-      // read key
-      offset += kHeaderLen;
-      std::vector<std::uint8_t> key_data(header.key_len());
-      read_len = src_->ReadAt(store::Position(file_id, offset),
-                              absl::MakeSpan(key_data));
-      if (!read_len.ok()) {
-        return read_len.status();
-      }
-
-      if (*read_len != header.key_len()) {
-        return absl::InternalError(kErrBadEntry);
-      }
-      offset += header.key_len();
-      acc = f(
-          std::move(acc),
-          KeyIndex{
-              file_id, Key{std::move(key_data),
-                           header.is_tombstone() ? absl::nullopt
-                                                 : absl::make_optional(ValuePos{
-                                                       header.value_len(),
-                                                       offset  // value_pos
-                                                   })
-
-                       }  // key
-          });
-      offset += header.value_len();
+  std::uint32_t offset = 0;
+  while (true) {
+    // read header
+    std::uint8_t header_data[kHeaderLen]{};
+    auto read_len = src_->ReadAt(store::Position(log_file_id_, offset),
+                                 {header_data, kHeaderLen});
+    if (!read_len.ok()) {
+      return read_len.status();
     }
+    if (*read_len == 0) {
+      // end of file
+      break;
+    }
+    if (*read_len != kHeaderLen) {
+      return absl::InternalError(kErrBadEntry);
+    }
+    RawHeader header(header_data);
+
+    // read key
+    offset += kHeaderLen;
+    std::vector<std::uint8_t> key_data(header.key_len());
+    read_len = src_->ReadAt(store::Position(log_file_id_, offset),
+                            absl::MakeSpan(key_data));
+    if (!read_len.ok()) {
+      return read_len.status();
+    }
+
+    if (*read_len != header.key_len()) {
+      return absl::InternalError(kErrBadEntry);
+    }
+    offset += header.key_len();
+    acc = f(std::move(acc),
+            Key{std::move(key_data), header.is_tombstone()
+                                         ? absl::nullopt
+                                         : absl::make_optional(ValuePos{
+                                               header.value_len(),
+                                               offset  // value_pos
+                                           })
+
+            });
+    offset += header.value_len();
   }
   return acc;
 }

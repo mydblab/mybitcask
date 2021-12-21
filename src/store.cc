@@ -84,7 +84,7 @@ absl::StatusOr<std::size_t> Store::ReadAt(
 
 absl::Status Store::Append(
     absl::Span<const uint8_t> src,
-    std::function<void(Position)> success_callback) noexcept {
+    const std::function<void(Position)>& success_callback) noexcept {
   absl::WriterMutexLock guard(&latest_file_lock_);
   if (nullptr == latest_writer_) {
     auto writer =

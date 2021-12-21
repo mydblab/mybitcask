@@ -3,11 +3,16 @@
 
 #include "absl/status/statusor.h"
 #include "ghc/filesystem.hpp"
-#include "mybitcask/internal/io.h"
+#include "mybitcask/mybitcask.h"
 
 #include <string>
 
 namespace mybitcask {
+
+namespace log {
+class Writer;
+}
+
 namespace test {
 
 // Class TempFile represents a temporary file,
@@ -63,6 +68,19 @@ std::string RandomString(Engine& engine, std::size_t min_len,
 
 // Converting string_view to span<uint8_t>
 absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept;
+
+struct TestEntry {
+  std::string key;
+  // Tombstone if None.
+  absl::optional<std::string> value;
+};
+
+// Generate a random entry
+TestEntry RandomEntry();
+
+absl::Status AppendTestEntry(
+    log::Writer* w, const TestEntry& test_entry,
+    const std::function<void(Position)>& success_callback = [](Position) {});
 
 }  // namespace test
 }  // namespace mybitcask

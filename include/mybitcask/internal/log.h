@@ -58,10 +58,8 @@ class Reader {
   absl::StatusOr<absl::optional<Entry>> Read(const Position& pos,
                                              std::uint8_t key_len) noexcept;
 
-  // Returns an key iterator selected from start_file_id to end_file_id
-  // (end_file_id included).
-  KeyIter key_iter(store::file_id_t start_file_id,
-                   store::file_id_t end_file_id) const;
+  // Returns an key iterator
+  KeyIter key_iter(store::file_id_t log_file_id) const;
 
  private:
   store::Store* src_;
@@ -79,9 +77,9 @@ class Writer {
   // return non-ok status
   //
   // Safe for concurrent use by multiple threads.
-  absl::Status Append(absl::Span<const std::uint8_t> key,
-                      absl::Span<const std::uint8_t> value,
-                      std::function<void(Position)> success_callback) noexcept;
+  absl::Status Append(
+      absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
+      const std::function<void(Position)>& success_callback) noexcept;
 
   // Add a tombstone log entry to the end of the underlying dest. Returns ok
   // status and the offset and length of the added entry if append successfully.
@@ -94,12 +92,12 @@ class Writer {
   // Safe for concurrent use by multiple threads.
   absl::Status AppendTombstone(
       absl::Span<const std::uint8_t> key,
-      std::function<void(Position)> success_callback) noexcept;
+      const std::function<void(Position)>& success_callback) noexcept;
 
  private:
   absl::Status AppendInner(
       absl::Span<const std::uint8_t> key, absl::Span<const std::uint8_t> value,
-      std::function<void(Position)> success_callback) noexcept;
+      const std::function<void(Position)>& success_callback) noexcept;
 
   store::Store* dest_;
 };
@@ -138,25 +136,18 @@ struct Key {
   absl::optional<ValuePos> value_pos;
 };
 
-struct KeyIndex {
-  store::file_id_t file_id;
-  Key key;
-};
-
 class KeyIter {
  public:
-  KeyIter(store::Store* src, store::file_id_t start_file_id,
-          store::file_id_t end_file_id);
+  KeyIter(store::Store* src, store::file_id_t log_file_id);
 
   // Folds keys into an accumulator by applying an operation, returning the
   // final result.
   template <typename T>
-  absl::StatusOr<T> Fold(T init, std::function<T(T&&, KeyIndex&&)> f) noexcept;
+  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept;
 
  private:
   store::Store* src_;
-  store::file_id_t start_file_id_;
-  store::file_id_t end_file_id_;
+  store::file_id_t log_file_id_;
 };
 
 }  // namespace log

@@ -208,25 +208,6 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
          "kErrBadValueLength";
 }
 
-struct TestEntry {
-  std::string key;
-  // Tombstone if None.
-  absl::optional<std::string> value;
-};
-
-TestEntry randomEntry() {
-  auto is_tombstone = test::RandomBool();
-
-  absl::optional<std::string> value;
-  if (is_tombstone) {
-    value = absl::nullopt;
-  } else {
-    value = test::RandomString(0x1, 0xF0);
-  }
-
-  return TestEntry{test::RandomString(0x1, 0xF0), value};
-}
-
 TEST(KeyIterTest, Fold) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
@@ -234,21 +215,12 @@ TEST(KeyIterTest, Fold) {
   Writer log_writer(&store);
   Reader log_reader(&store, false);
 
-  std::vector<TestEntry> entrys;
+  std::vector<test::TestEntry> entrys;
   int entrys_size = 100;
   for (int i = 0; i < entrys_size; i++) {
-    auto entry = randomEntry();
+    auto entry = test::RandomEntry();
     entrys.push_back(entry);
-    if (entry.value.has_value()) {
-      ASSERT_TRUE(log_writer
-                      .Append(test::StrSpan(entry.key),
-                              test::StrSpan(*entry.value), [](Position) {})
-                      .ok());
-    } else {
-      ASSERT_TRUE(
-          log_writer.AppendTombstone(test::StrSpan(entry.key), [](Position) {})
-              .ok());
-    }
+    ASSERT_TRUE(test::AppendTestEntry(&log_writer, entry).ok());
   }
 
   store::LogFiles log_files(tmpdir->path());
@@ -259,27 +231,28 @@ TEST(KeyIterTest, Fold) {
   } else {
     latest_file_id = log_files.older_log_files().back();
   }
-  auto key_iter = log_reader.key_iter(1, latest_file_id);
 
   struct TestKey {
     std::string key;
     bool is_tombstone;
   };
+  struct Void {};
+  std::vector<TestKey> fold_keys;
+  for (store::file_id_t i = 1; i <= latest_file_id; i++) {
+    auto key_iter = log_reader.key_iter(i);
+    auto status = key_iter.Fold<Void>(Void(), [&](Void&&, Key&& key) {
+      std::string k(key.key_data.begin(), key.key_data.end());
+      fold_keys.push_back(TestKey{k, !key.value_pos.has_value()});
+      return Void();
+    });
+    ASSERT_TRUE(status.ok())
+        << "Failed to fold keys; err: " << status.status().message();
+  }
 
-  auto fold_keys = key_iter.Fold<std::vector<TestKey>>(
-      std::vector<TestKey>(),
-      [](std::vector<TestKey>&& acc, KeyIndex&& key_idx) {
-        std::string k(key_idx.key.key_data.begin(), key_idx.key.key_data.end());
-        acc.push_back(TestKey{k, !key_idx.key.value_pos.has_value()});
-        return acc;
-      });
-
-  ASSERT_TRUE(fold_keys.ok())
-      << "Failed to fold keys; err: " << fold_keys.status().message();
-  ASSERT_EQ(entrys.size(), fold_keys->size());
-  for (int i = 0; i < fold_keys->size(); i++) {
-    EXPECT_EQ(entrys[i].key, (*fold_keys)[i].key);
-    EXPECT_EQ(!entrys[i].value.has_value(), (*fold_keys)[i].is_tombstone);
+  ASSERT_EQ(entrys.size(), fold_keys.size());
+  for (int i = 0; i < fold_keys.size(); i++) {
+    EXPECT_EQ(entrys[i].key, fold_keys[i].key);
+    EXPECT_EQ(!entrys[i].value.has_value(), fold_keys[i].is_tombstone);
   }
 }
 

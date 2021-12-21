@@ -32,9 +32,17 @@ class Generator {
   ghc::filesystem::path path_;
 };
 
-template <typename T>
-absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T&&, log::Key&&)> f) noexcept;
+class KeyIter {
+ public:
+  KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id);
+
+  template <typename T>
+  absl::StatusOr<T> Fold(T init, std::function<T(T&&, log::Key&&)> f) noexcept;
+
+ private:
+  const ghc::filesystem::path* path_;
+  file_id_t hint_file_id_;
+};
 
 }  // namespace hint
 }  // namespace store

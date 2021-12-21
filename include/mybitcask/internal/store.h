@@ -67,7 +67,7 @@ class Store {
 
   absl::Status Append(
       absl::Span<const std::uint8_t> src,
-      std::function<void(Position)> success_callback = [](Position) {
+      const std::function<void(Position)>& success_callback = [](Position) {
       }) noexcept;
 
   absl::Status Sync() noexcept;

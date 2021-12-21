@@ -1,4 +1,5 @@
 #include "test_util.h"
+#include "mybitcask/internal/log.h"
 
 #include <random>
 
@@ -120,6 +121,29 @@ std::string RandomString(Engine& engine, std::size_t min_len,
 absl::Span<std::uint8_t> StrSpan(absl::string_view buf) noexcept {
   return {reinterpret_cast<std::uint8_t*>(const_cast<char*>(buf.data())),
           buf.size()};
+}
+
+TestEntry RandomEntry() {
+  auto is_tombstone = RandomBool();
+
+  absl::optional<std::string> value;
+  if (is_tombstone) {
+    value = absl::nullopt;
+  } else {
+    value = RandomString(0x1, 0xF0);
+  }
+  return TestEntry{RandomString(0x1, 0xF0), value};
+}
+
+absl::Status AppendTestEntry(
+    log::Writer* w, const TestEntry& test_entry,
+    const std::function<void(Position)>& success_callback) {
+  if (test_entry.value.has_value()) {
+    return w->Append(StrSpan(test_entry.key), StrSpan(*test_entry.value),
+                     success_callback);
+  } else {
+    return w->AppendTombstone(StrSpan(test_entry.key), success_callback);
+  }
 }
 
 }  // namespace test

@@ -48,18 +48,11 @@ class RawHeader final {
 Generator::Generator(log::Reader* log_reader, const ghc::filesystem::path& path)
     : log_reader_(log_reader), path_(path) {}
 
-struct Void {};
-
 absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
   auto log_file_path = path_ / LogFilename(file_id);
 
   if (!ghc::filesystem::exists(log_file_path)) {
     return absl::NotFoundError(kErrLogFileNotExist);
-  }
-
-  std::ifstream log_file(log_file_path, std::ios::binary | std::ios::in);
-  if (!log_file.is_open()) {
-    return absl::InternalError(io::kErrOpenFailed);
   }
 
   std::ofstream hint_file(path_ / HintFilename(file_id),
@@ -68,24 +61,22 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
     return absl::InternalError(kErrRead);
   }
 
-  auto keys =
-      log_reader_->key_iter(file_id, file_id)
-          .Fold<std::vector<log::KeyIndex>>(
-              std::vector<log::KeyIndex>(),
-              [&](std::vector<log::KeyIndex>&& acc, log::KeyIndex&& key_idx) {
-                acc.push_back(std::move(key_idx));
-                return acc;
-              });
+  auto keys = log_reader_->key_iter(file_id).Fold<std::vector<log::Key>>(
+      std::vector<log::Key>(),
+      [&](std::vector<log::Key>&& acc, log::Key&& key) {
+        acc.push_back(std::move(key));
+        return acc;
+      });
   if (!keys.ok()) {
     return keys.status();
   }
-  for (auto& key_idx : *keys) {
+  for (auto& key : *keys) {
     std::uint8_t header_data[kHeaderLen]{};
     RawHeader header(header_data);
-    header.set_key_len(key_idx.key.key_data.size());
-    if (key_idx.key.value_pos.has_value()) {
-      header.set_value_len(key_idx.key.value_pos->value_len);
-      header.set_value_pos(key_idx.key.value_pos->value_pos);
+    header.set_key_len(key.key_data.size());
+    if (key.value_pos.has_value()) {
+      header.set_value_len(key.value_pos->value_len);
+      header.set_value_pos(key.value_pos->value_pos);
     } else {
       header.set_tombstone();
     }
@@ -96,8 +87,8 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
     if (hint_file.fail()) {
       return absl::InternalError(kErrWrite);
     }
-    hint_file.write(reinterpret_cast<char*>(key_idx.key.key_data.data()),
-                    key_idx.key.key_data.size());
+    hint_file.write(reinterpret_cast<char*>(key.key_data.data()),
+                      key.key_data.size());
     if (hint_file.fail()) {
       return absl::InternalError(kErrWrite);
     }
@@ -105,15 +96,18 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
   return absl::OkStatus();
 }
 
-template <typename T>
-absl::StatusOr<T> FoldKeys(absl::string_view hint_filepath, T init,
-                           std::function<T(T&&, log::Key&&)> f) noexcept {
-  std::ifstream file(hint_filepath.data(), std::ios::binary | std::ios::in);
+KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
+    : path_(path), hint_file_id_(hint_file_id) {}
 
-  if (!file) {
+template <typename T>
+absl::StatusOr<T> KeyIter::Fold(T init,
+                                std::function<T(T&&, log::Key&&)> f) noexcept {
+  std::ifstream hint_file(path_ / HintFilename(hint_file_id),
+                          std::ios::binary | std::ios::in);
+  if (!hint_file) {
     return absl::InternalError(kErrRead);
   }
-  auto acc = std::move(init);
+  auto&& acc = std::move(init);
   while (true) {
     std::uint8_t header_data[kHeaderLen]{};
     file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
