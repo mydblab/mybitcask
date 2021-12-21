@@ -12,6 +12,7 @@ find_package(AbseilCpp REQUIRED)
 find_package(GhcFilesystem REQUIRED)
 find_package(Replxx REQUIRED)
 find_package(Clipp REQUIRED)
+find_package(Spdlog REQUIRED)
 
 # mybitcask core library
 add_library(${PROJECT_NAME}
@@ -21,6 +22,7 @@ add_library(${PROJECT_NAME}
   src/store.cc
   src/mybitcask.cc
   src/store_hint.cc
+  src/worker.cc
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
@@ -44,6 +46,7 @@ target_link_libraries(${PROJECT_NAME}
   absl::btree
   absl::strings
   ghc_filesystem
+  spdlog::spdlog
 )
 
 # mykv

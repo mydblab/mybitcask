@@ -35,7 +35,7 @@ class LockFilePosix final : public LockFile {
     return absl::InternalError(std::strerror(en));
   }
 
-  absl::Status Unlock() {
+  absl::Status Unlock(bool delete_file = true) {
     assertm(locked_, "Attempted to unlock already locked lockfile");
     if (flock(fd_, LOCK_UN) >= 0) {
       locked_ = false;
