@@ -102,7 +102,7 @@ KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
 template <typename T>
 absl::StatusOr<T> KeyIter::Fold(T init,
                                 std::function<T(T&&, log::Key&&)> f) noexcept {
-  std::ifstream hint_file(path_ / HintFilename(hint_file_id),
+  std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
                           std::ios::binary | std::ios::in);
   if (!hint_file) {
     return absl::InternalError(kErrRead);
@@ -111,10 +111,10 @@ absl::StatusOr<T> KeyIter::Fold(T init,
   while (true) {
     std::uint8_t header_data[kHeaderLen]{};
     hint_file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
-    if (file.eof()) {
+    if (hint_file.eof()) {
       return acc;
     }
-    if (file.fail()) {
+    if (hint_file.fail()) {
       return absl::InternalError(kErrRead);
     }
     RawHeader header(header_data);
@@ -126,7 +126,7 @@ absl::StatusOr<T> KeyIter::Fold(T init,
     key.key_data.resize(header.key_len());
     hint_file.read(reinterpret_cast<char*>(key.key_data.data()),
                    header.key_len());
-    if (file.fail()) {
+    if (hint_file.fail()) {
       return absl::InternalError(kErrRead);
     }
     acc = f(std::move(acc), std::move(key));
