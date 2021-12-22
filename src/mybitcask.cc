@@ -3,6 +3,10 @@
 
 namespace mybitcask {
 
+absl::Span<const std::uint8_t> MakeU8Span(const std::string& s) {
+  return {reinterpret_cast<const std::uint8_t*>(s.data()), s.size()};
+}
+
 MyBitcask::MyBitcask(const ghc::filesystem::path& data_dir,
                      std::uint32_t dead_bytes_threshold, bool checksum)
     : index_(), index_rwlock_() {
@@ -38,22 +42,18 @@ absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
 
 absl::Status MyBitcask::Insert(const std::string& key,
                                const std::string& value) noexcept {
-  return log_writer_.Append(
-      {reinterpret_cast<const std::uint8_t*>(key.data()), key.size()},
-      {reinterpret_cast<const std::uint8_t*>(value.data()), value.size()},
-      [&](Position pos) {
-        absl::WriterMutexLock guard(&index_rwlock_);
-        index_.insert({key, pos});
-      });
+  return log_writer_.Append(MakeU8Span(key), MakeU8Span(value),
+                            [&](Position pos) {
+                              absl::WriterMutexLock guard(&index_rwlock_);
+                              index_.insert({key, pos});
+                            });
 }
 
 absl::Status MyBitcask::Delete(const std::string& key) noexcept {
-  return log_writer_.AppendTombstone(
-      {reinterpret_cast<const std::uint8_t*>(key.data()), key.size()},
-      [&](Position) {
-        absl::WriterMutexLock guard(&index_rwlock_);
-        index_.erase(key);
-      });
+  return log_writer_.AppendTombstone(MakeU8Span(key), [&](Position) {
+    absl::WriterMutexLock guard(&index_rwlock_);
+    index_.erase(key);
+  });
 }
 
 absl::optional<Position> MyBitcask::get_position(absl::string_view key) {
