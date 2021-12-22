@@ -78,7 +78,8 @@ absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
       dbfiles.key_iter(&log_reader)
           .Fold<absl::btree_map<std::string, Position>, std::string>(
               absl::btree_map<std::string, Position>(),
-              [](auto&& acc, auto file_id, auto&& key) {
+              [](absl::btree_map<std::string, Position>&& acc,
+                 store::file_id_t file_id, log::Key<std::string>&& key) {
                 if (key.value_pos.has_value()) {
                   acc.insert({std::move(key.key_data),
                               Position{file_id, key.value_pos->value_pos,

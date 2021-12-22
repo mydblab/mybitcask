@@ -249,8 +249,8 @@ TEST(KeyIterTest, Fold) {
   std::vector<TestKey> fold_keys;
   for (store::file_id_t i = 1; i <= latest_file_id; i++) {
     auto key_iter = log_reader.key_iter(i);
-    auto status = key_iter.Fold<Void, std::string>(Void(), [&](Void&&,
-                                                               auto&& key) {
+    auto status = key_iter.Fold<
+        Void, std::string>(Void(), [&](Void&&, Key<std::string>&& key) {
       fold_keys.push_back(TestKey{key.key_data, !key.value_pos.has_value()});
       return Void();
     });

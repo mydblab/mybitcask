@@ -69,7 +69,7 @@ class KeyIter {
       auto status =
           log_reader_->key_iter(log_file_id)
               .Fold<Void, Container>(
-                  Void(), [&](Void&& _, log::Key<Container>&& key) {
+                  Void(), [&](Void&&, log::Key<Container>&& key) {
                     acc = f(std::move(acc), log_file_id, std::move(key));
                     return Void();
                   });
