@@ -44,13 +44,15 @@ file_id_t DBFiles::latest_file_id() const {
 }
 
 KeyIter DBFiles::key_iter(const log::Reader* log_reader) const {
-  return KeyIter(log_reader, &hint_files_, &active_log_files_);
+  return KeyIter(log_reader, &path_, &hint_files_, &active_log_files_);
 }
 
 KeyIter::KeyIter(const log::Reader* log_reader,
+                 const ghc::filesystem::path* path,
                  const std::vector<file_id_t>* hint_files,
                  const std::vector<file_id_t>* active_log_files)
     : log_reader_(log_reader),
+      path_(path),
       hint_files_(hint_files),
       active_log_files_(active_log_files) {}
 

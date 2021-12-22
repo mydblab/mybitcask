@@ -39,7 +39,7 @@ struct Void {};
 
 class KeyIter {
  public:
-  KeyIter(const log::Reader* log_reader,
+  KeyIter(const log::Reader* log_reader, const ghc::filesystem::path* path,
           const std::vector<file_id_t>* hint_files,
           const std::vector<file_id_t>* active_log_files);
 
@@ -48,7 +48,7 @@ class KeyIter {
                          std::function<T(T&&, log::Key&&)> f) const noexcept {
     auto&& acc = std::move(init);
     for (auto& hint_file_id : *hint_files_) {
-      auto status = hint::KeyIter(&path(), hint_file_id)
+      auto status = hint::KeyIter(path_, hint_file_id)
                         .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
                           acc = f(std::move(acc), std::move(key));
                           return Void();
@@ -73,6 +73,7 @@ class KeyIter {
 
  private:
   const log::Reader* log_reader_;
+  const ghc::filesystem::path* path_;
   const std::vector<file_id_t>* hint_files_;
   const std::vector<file_id_t>* active_log_files_;
 };

@@ -1,7 +1,6 @@
 #include "store_hint.h"
-#include "store_filename.h"
-
 #include "absl/base/internal/endian.h"
+#include "store_filename.h"
 
 namespace mybitcask {
 namespace store {
@@ -96,8 +95,40 @@ Merger::Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
       key_valid_fn_(key_valid_fn),
       re_insert_fn_(re_insert_fn) {}
 
+DataDistribution Merger::DataDistribution(std::uint32_t file_id) noexcept {
+  auto keyiter = KeyIter(&path_, file_id);
+  return keyiter.Fold<DataDistribution>(
+      DataDistribution{0, 0}, [&](DataDistribution&& acc, log::Key&& key) {
+        std::uint32_t data_len = key.key_data.size();
+        if (key.value_pos.has_value()) {
+          data_len += key.value_pos.value().value_len;
+        }
+        if (key_valid_fn_(key)) {
+          acc.valid_data_len += data_len;
+        }
+        acc.total_data_len += data_len;
+        return acc;
+      });
+}
+
 absl::Status Merger::Merge(std::uint32_t file_id) noexcept {
-  // KeyIter(&path_, file_id).Fold();
+  auto keyiter = KeyIter(&path_, file_id);
+  auto valid_keys = keyiter.Fold<std::vector<log::Key>>(
+      std::vector<log::Key>(),
+      [&](std::vector<log::Key>&& acc, log::Key&& key) {
+        if (key_valid_fn_(key)) {
+          acc.push_back(std::move(key));
+        }
+        return acc;
+      });
+
+  for (auto key : valid_keys) {
+    auto status = re_insert_fn_(key);
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
   return absl::OkStatus();
 }
 
