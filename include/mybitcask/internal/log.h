@@ -175,50 +175,28 @@ struct Key {
   absl::optional<ValuePos> value_pos;
 };
 
-namespace log_key_container_internal {
+namespace key_container_internal {
 template <typename Container>
-void resize(Container& c, typename Container::size_type count) {
+void Resize(Container& c, typename Container::size_type count) {
   c.resize(count);
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> typename std::enable_if<
-    std::is_same<typename Container::value_type, T>::value &&
-        !std::is_const<
-            typename std::remove_pointer<decltype(c.data())>::type>::value,
-    T*>::type {
-  return c.data();
-}
-
-template <typename Container, typename T>
-auto data(Container& c) -> typename std::enable_if<
-    std::is_same<typename Container::value_type, T>::value &&
-        std::is_const<
-            typename std::remove_pointer<decltype(c.data())>::type>::value,
-    T*>::type {
+typename std::enable_if<std::is_same<typename Container::value_type, T>::value,
+                        T*>::type
+GetData(Container& c) {
   return const_cast<T*>(c.data());
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> typename std::enable_if<
-    !std::is_same<typename Container::value_type, T>::value &&
-        !std::is_const<
-            typename std::remove_pointer<decltype(c.data())>::type>::value,
-    T*>::type {
-  return reinterpret_cast<T*>(c.data());
-}
-
-template <typename Container, typename T>
-auto data(Container& c) -> typename std::enable_if<
-    !std::is_same<typename Container::value_type, T>::value &&
-        std::is_const<
-            typename std::remove_pointer<decltype(c.data())>::type>::value,
-    T*>::type {
+typename std::enable_if<!std::is_same<typename Container::value_type, T>::value,
+                        T*>::type
+GetData(Container& c) {
   return reinterpret_cast<T*>(
       const_cast<typename Container::value_type*>(c.data()));
 }
 
-}  // namespace log_key_container_internal
+}  // namespace key_container_internal
 
 class KeyIter {
  public:
@@ -253,10 +231,10 @@ class KeyIter {
       offset += log_internal::kHeaderLen;
 
       Container key_data{};
-      log_key_container_internal::resize(key_data, header.key_len());
+      key_container_internal::Resize(key_data, header.key_len());
       read_len = src_->ReadAt(
           store::Position(log_file_id_, offset),
-          {log_key_container_internal::data<Container, std::uint8_t>(key_data),
+          {key_container_internal::GetData<Container, std::uint8_t>(key_data),
            key_data.size()});
       if (!read_len.ok()) {
         return read_len.status();

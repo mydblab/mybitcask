@@ -151,9 +151,9 @@ class KeyIter {
                           ? absl::nullopt
                           : absl::make_optional(log::ValuePos{
                                 header.value_len(), header.value_pos()});
-      log::log_key_container_internal::resize(key.key_data, header.key_len());
+      log::key_container_internal::Resize(key.key_data, header.key_len());
       hint_file.read(
-          log::log_key_container_internal::data<Container, char>(key.key_data),
+          log::key_container_internal::GetData<Container, char>(key.key_data),
           header.key_len());
       if (hint_file.fail()) {
         return absl::InternalError(kErrRead);
