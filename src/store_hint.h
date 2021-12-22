@@ -58,6 +58,29 @@ class Generator {
   ghc::filesystem::path path_;
 };
 
+struct DataDistribution {
+  std::uint32_t valid_data_len;
+  std::uint32_t total_data_len;
+};
+
+class Merger {
+ public:
+  Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
+         std::function<bool(const log::Key&)>&& key_valid_fn,
+         std::function<absl::Status(const log::Key&&)>&& re_insert_fn);
+
+  absl::StatusOr<struct DataDistribution> DataDistribution(
+      std::uint32_t file_id) noexcept;
+
+  absl::Status Merge(std::uint32_t file_id) noexcept;
+
+ private:
+  log::Reader* log_reader_;
+  ghc::filesystem::path path_;
+  std::function<bool(const log::Key&)> key_valid_fn_;
+  std::function<absl::Status(const log::Key&&)> re_insert_fn_;
+};
+
 class KeyIter {
  public:
   KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id);

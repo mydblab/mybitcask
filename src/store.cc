@@ -31,7 +31,7 @@ absl::Status Store::Append(
     if (!writer.ok()) {
       return absl::Status(writer.status());
     }
-    latest_writer_ = *std::move(writer);
+    latest_writer_ = std::move(writer).value();
   }
   auto file_size = latest_writer_->Size();
 
@@ -43,12 +43,12 @@ absl::Status Store::Append(
     if (!writer.ok()) {
       return absl::Status(writer.status());
     }
-    latest_writer_ = *std::move(writer);
+    latest_writer_ = std::move(writer).value();
     auto reader = io::OpenRandomAccessFileReader(std::move(latest_filename));
     if (!reader.ok()) {
       return absl::Status(reader.status());
     }
-    latest_reader_ = *std::move(reader);
+    latest_reader_ = std::move(reader).value();
   }
   auto offset = latest_writer_->Append(src);
   if (offset.ok()) {
@@ -89,7 +89,7 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
         latest_file_lock_.Unlock();
         return absl::Status(reader.status());
       }
-      latest_reader_ = *std::move(reader);
+      latest_reader_ = std::move(reader).value();
     }
     latest_file_lock_.Unlock();
     return latest_reader_.get();
@@ -115,7 +115,7 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
           readers_lock_.Unlock();
           return absl::Status(r.status());
         }
-        it = readers_.emplace(std::move(file_id), *std::move(r)).first;
+        it = readers_.emplace(std::move(file_id), std::move(r).value()).first;
       }
       readers_lock_.Unlock();
     } else {
