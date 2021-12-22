@@ -41,10 +41,9 @@ TEST(HintTest, GenerateAndFold) {
   for (auto file_id : dbfiles.hint_files()) {
     auto status =
         KeyIter(&tmpdir->path(), file_id)
-            .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
+            .Fold<Void, std::string>(Void(), [&](Void&&, auto&& key) {
               fold_keys.push_back(
-                  TestKey{std::string(key.key_data.begin(), key.key_data.end()),
-                          !key.value_pos.has_value()});
+                  TestKey{std::move(key.key_data), !key.value_pos.has_value()});
               return Void();
             });
     ASSERT_TRUE(status.ok());

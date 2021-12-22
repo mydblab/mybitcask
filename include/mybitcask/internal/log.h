@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace mybitcask {
@@ -27,6 +28,8 @@ const std::string kErrBadEntry = "bad log entry";
 const std::string kErrBadKeyLength = "key length must be between (0, 255]";
 const std::string kErrBadValueLength =
     "value length must be between (0, 65535)";
+
+namespace log_internal {
 
 const std::uint32_t kCrc32Len = 4;
 const std::uint32_t kKeyLenLen = 1;
@@ -61,6 +64,7 @@ class RawHeader final {
 
   std::uint8_t* const data_;
 };
+}  // namespace log_internal
 
 class Entry;
 
@@ -164,11 +168,53 @@ struct ValuePos {
   std::uint32_t value_pos;
 };
 
+template <typename Container>
 struct Key {
-  std::vector<std::uint8_t> key_data;
+  Container key_data;
   // value_pos if empty means tombstone entry
   absl::optional<ValuePos> value_pos;
 };
+
+namespace log_key_container_internal {
+template <typename Container>
+void resize(Container& c, typename Container::size_type count) {
+  c.resize(count);
+}
+
+template <typename Container, typename T>
+auto data(Container& c) -> std::enable_if_t<
+    std::is_same_v<typename Container::value_type, T> &&
+        !std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
+    T*> {
+  return c.data();
+}
+
+template <typename Container, typename T>
+auto data(Container& c) -> std::enable_if_t<
+    std::is_same_v<typename Container::value_type, T> &&
+        std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
+    T*> {
+  return const_cast<T*>(c.data());
+}
+
+template <typename Container, typename T>
+auto data(Container& c) -> std::enable_if_t<
+    !std::is_same_v<typename Container::value_type, T> &&
+        !std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
+    T*> {
+  return reinterpret_cast<T*>(c.data());
+}
+
+template <typename Container, typename T>
+auto data(Container& c) -> std::enable_if_t<
+    !std::is_same_v<typename Container::value_type, T> &&
+        std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
+    T*> {
+  return reinterpret_cast<T*>(
+      const_cast<typename Container::value_type*>(c.data()));
+}
+
+}  // namespace log_key_container_internal
 
 class KeyIter {
  public:
@@ -176,16 +222,17 @@ class KeyIter {
 
   // Folds keys into an accumulator by applying an operation, returning the
   // final result.
-  template <typename T>
-  absl::StatusOr<T> Fold(T init, std::function<T(T&&, Key&&)> f) noexcept {
+  template <typename T, typename Container>
+  absl::StatusOr<T> Fold(
+      T init, const std::function<T(T&&, Key<Container>&&)>& f) noexcept {
     auto&& acc = std::move(init);
 
     std::uint32_t offset = 0;
     while (true) {
       // read header
-      std::uint8_t header_data[kHeaderLen]{};
+      std::uint8_t header_data[log_internal::kHeaderLen]{};
       auto read_len = src_->ReadAt(store::Position(log_file_id_, offset),
-                                   {header_data, kHeaderLen});
+                                   {header_data, log_internal::kHeaderLen});
       if (!read_len.ok()) {
         return read_len.status();
       }
@@ -193,16 +240,20 @@ class KeyIter {
         // end of file
         break;
       }
-      if (*read_len != kHeaderLen) {
+      if (*read_len != log_internal::kHeaderLen) {
         return absl::InternalError(kErrBadEntry);
       }
-      RawHeader header(header_data);
+      log_internal::RawHeader header(header_data);
 
       // read key
-      offset += kHeaderLen;
-      std::vector<std::uint8_t> key_data(header.key_len());
-      read_len = src_->ReadAt(store::Position(log_file_id_, offset),
-                              absl::MakeSpan(key_data));
+      offset += log_internal::kHeaderLen;
+
+      Container key_data{};
+      log_key_container_internal::resize(key_data, header.key_len());
+      read_len = src_->ReadAt(
+          store::Position(log_file_id_, offset),
+          {log_key_container_internal::data<Container, std::uint8_t>(key_data),
+           key_data.size()});
       if (!read_len.ok()) {
         return read_len.status();
       }
@@ -211,15 +262,15 @@ class KeyIter {
         return absl::InternalError(kErrBadEntry);
       }
       offset += header.key_len();
-      acc = f(std::move(acc),
-              Key{std::move(key_data), header.is_tombstone()
-                                           ? absl::nullopt
-                                           : absl::make_optional(ValuePos{
-                                                 header.value_len(),
-                                                 offset  // value_pos
-                                             })
+      acc = f(std::move(acc), Key<Container>{std::move(key_data),
+                                             header.is_tombstone()
+                                                 ? absl::nullopt
+                                                 : absl::make_optional(ValuePos{
+                                                       header.value_len(),
+                                                       offset  // value_pos
+                                                   })
 
-              });
+                              });
       offset += header.value_len();
     }
     return acc;

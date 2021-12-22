@@ -24,8 +24,9 @@ struct Position {
 
 class MyBitcask {
  public:
-  MyBitcask(const ghc::filesystem::path& data_dir,
-            std::uint32_t dead_bytes_threshold, bool checksum);
+  MyBitcask(std::unique_ptr<store::Store>&& store, log::Reader&& log_reader,
+            log::Writer&& log_writer,
+            absl::btree_map<std::string, Position>&& index);
 
   // If the database contains an entry for `key` store the
   // corresponding value in `value` and return true
@@ -48,6 +49,11 @@ class MyBitcask {
   log::Reader log_reader_;
   log::Writer log_writer_;
 };
+
+absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
+    const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
+    bool checksum);
+
 }  // namespace mybitcask
 
 #endif  // MYBITCASK_INCLUDE_MYBITCASK_H_

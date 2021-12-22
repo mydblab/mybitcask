@@ -28,7 +28,6 @@ const std::uint32_t kValLenLen = 2;
 const std::uint32_t kValPosLen = 4;
 const std::uint32_t kHeaderLen = kKeyLenLen + kValLenLen + kValPosLen;
 
-
 class RawHeader final {
  public:
   RawHeader(std::uint8_t* const data);
@@ -63,8 +62,9 @@ class KeyIter {
  public:
   KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id);
 
-  template <typename T>
-  absl::StatusOr<T> Fold(T init, std::function<T(T&&, log::Key&&)> f) noexcept {
+  template <typename T, typename Container>
+  absl::StatusOr<T> Fold(
+      T init, const std::function<T(T&&, log::Key<Container>&&)>& f) noexcept {
     std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
                             std::ios::binary | std::ios::in);
     if (!hint_file) {
@@ -81,14 +81,15 @@ class KeyIter {
         return absl::InternalError(kErrRead);
       }
       RawHeader header(header_data);
-      log::Key key{};
+      log::Key<Container> key{};
       key.value_pos = header.is_tombstone()
                           ? absl::nullopt
                           : absl::make_optional(log::ValuePos{
                                 header.value_len(), header.value_pos()});
-      key.key_data.resize(header.key_len());
-      hint_file.read(reinterpret_cast<char*>(key.key_data.data()),
-                     header.key_len());
+      log::log_key_container_internal::resize(key.key_data, header.key_len());
+      hint_file.read(
+          log::log_key_container_internal::data<Container, char>(key.key_data),
+          header.key_len());
       if (hint_file.fail()) {
         return absl::InternalError(kErrRead);
       }

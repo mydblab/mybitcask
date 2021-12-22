@@ -13,7 +13,6 @@
 
 #include <memory>
 #include <random>
-#include "log.cc"
 
 namespace mybitcask {
 namespace log {
@@ -138,7 +137,8 @@ TEST(LogWriterTest, ReadWrongEntry) {
   auto offset = w.offset();
   auto status = store.Sync();
   ASSERT_TRUE(status.ok());
-  auto entry_opt = log_read(&log_reader, Position{1, kHeaderLen + 1, 1}, "a");
+  auto entry_opt =
+      log_read(&log_reader, Position{1, log_internal::kHeaderLen + 1, 1}, "a");
   EXPECT_FALSE(entry_opt.ok()) << "read an entry with bad crc should fail";
   EXPECT_EQ(entry_opt.status().message(), kErrBadEntry)
       << "read an entry with bad crc should return kErrBadEntry";
@@ -152,7 +152,7 @@ TEST(LogWriterTest, ReadWrongEntry) {
   ASSERT_TRUE(status.ok());
   entry_opt =
       log_read(&log_reader,
-               Position{1, kHeaderLen + offset,
+               Position{1, log_internal::kHeaderLen + offset,
                         static_cast<std::uint16_t>(w.offset() - offset)},
                "a");
   offset = w.offset();
@@ -249,9 +249,9 @@ TEST(KeyIterTest, Fold) {
   std::vector<TestKey> fold_keys;
   for (store::file_id_t i = 1; i <= latest_file_id; i++) {
     auto key_iter = log_reader.key_iter(i);
-    auto status = key_iter.Fold<Void>(Void(), [&](Void&&, Key&& key) {
-      std::string k(key.key_data.begin(), key.key_data.end());
-      fold_keys.push_back(TestKey{k, !key.value_pos.has_value()});
+    auto status = key_iter.Fold<Void, std::string>(Void(), [&](Void&&,
+                                                               auto&& key) {
+      fold_keys.push_back(TestKey{key.key_data, !key.value_pos.has_value()});
       return Void();
     });
     ASSERT_TRUE(status.ok())

@@ -39,33 +39,39 @@ struct Void {};
 
 class KeyIter {
  public:
-  KeyIter(const log::Reader* log_reader,
+  KeyIter(const log::Reader* log_reader, const ghc::filesystem::path* path,
           const std::vector<file_id_t>* hint_files,
           const std::vector<file_id_t>* active_log_files);
 
-  template <typename T>
-  absl::StatusOr<T> Fold(T init,
-                         std::function<T(T&&, log::Key&&)> f) const noexcept {
+  template <typename T, typename Container>
+  absl::StatusOr<T> Fold(
+      T init,
+      const std::function<T(T&&, file_id_t file_id, log::Key<Container>&&)>& f)
+      const noexcept {
     auto&& acc = std::move(init);
     for (auto& hint_file_id : *hint_files_) {
-      auto status = hint::KeyIter(&path(), hint_file_id)
-                        .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {
-                          acc = f(std::move(acc), std::move(key));
-                          return Void();
-                        });
+      auto status =
+          hint::KeyIter(path_, hint_file_id)
+              .Fold<Void, Container>(
+                  Void(), [&](Void&&, log::Key<Container>&& key) {
+                    acc = f(std::move(acc), hint_file_id, std::move(key));
+                    return Void();
+                  });
       if (!status.ok()) {
-        return status;
+        return status.status();
       }
     }
 
     for (auto& log_file_id : *active_log_files_) {
-      auto status = log_reader_->key_iter(log_file_id)
-                        .Fold<Void>(Void(), [&](Void&& _, log::Key&& key) {
-                          acc = f(std::move(acc), std::move(key));
-                          return Void();
-                        });
+      auto status =
+          log_reader_->key_iter(log_file_id)
+              .Fold<Void, Container>(
+                  Void(), [&](Void&& _, log::Key<Container>&& key) {
+                    acc = f(std::move(acc), log_file_id, std::move(key));
+                    return Void();
+                  });
       if (!status.ok()) {
-        return status;
+        return status.status();
       }
     }
     return acc;
@@ -73,6 +79,7 @@ class KeyIter {
 
  private:
   const log::Reader* log_reader_;
+  const ghc::filesystem::path* path_;
   const std::vector<file_id_t>* hint_files_;
   const std::vector<file_id_t>* active_log_files_;
 };

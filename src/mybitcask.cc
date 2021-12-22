@@ -7,15 +7,16 @@ absl::Span<const std::uint8_t> MakeU8Span(const std::string& s) {
   return {reinterpret_cast<const std::uint8_t*>(s.data()), s.size()};
 }
 
-MyBitcask::MyBitcask(const ghc::filesystem::path& data_dir,
-                     std::uint32_t dead_bytes_threshold, bool checksum)
-    : index_(), index_rwlock_() {
-  store_ = std::unique_ptr<store::Store>(
-      new store::Store(data_dir, store::DBFiles(data_dir).latest_file_id(),
-                       dead_bytes_threshold));
-  log_reader_ = log::Reader(store_.get(), checksum);
-  log_writer_ = log::Writer(store_.get());
-}
+MyBitcask::MyBitcask(std::unique_ptr<store::Store>&& store,
+                     log::Reader&& log_reader, log::Writer&& log_writer,
+                     absl::btree_map<std::string, Position>&& index)
+    : store_(std::move(store)),
+      index_(std::move(index)),
+      index_rwlock_(),
+      log_reader_(std::move(log_reader)),
+      log_writer_(std::move(log_writer))
+
+{}
 
 absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
                                     int try_num) noexcept {
@@ -63,5 +64,36 @@ absl::optional<Position> MyBitcask::get_position(absl::string_view key) {
     return absl::nullopt;
   }
   return search->second;
+}
+
+absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
+    const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
+    bool checksum) {
+  store::DBFiles dbfiles(data_dir);
+  std::unique_ptr<store::Store> store(new store::Store(
+      dbfiles.path(), dbfiles.latest_file_id(), dead_bytes_threshold));
+  log::Reader log_reader(store.get(), checksum);
+
+  auto index =
+      dbfiles.key_iter(&log_reader)
+          .Fold<absl::btree_map<std::string, Position>, std::string>(
+              absl::btree_map<std::string, Position>(),
+              [](auto&& acc, auto file_id, auto&& key) {
+                if (key.value_pos.has_value()) {
+                  acc.insert({std::move(key.key_data),
+                              Position{file_id, key.value_pos->value_pos,
+                                       key.value_pos->value_len}});
+                } else {
+                  acc.erase(key.key_data);
+                }
+                return acc;
+              });
+  if (!index.ok()) {
+    return index.status();
+  }
+  log::Writer log_writer(store.get());
+  return std::unique_ptr<MyBitcask>(
+      new MyBitcask(std::move(store), std::move(log_reader),
+                    std::move(log_writer), std::move(index).value()));
 }
 }  // namespace mybitcask

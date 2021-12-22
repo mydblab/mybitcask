@@ -30,6 +30,7 @@ namespace log {
 // this case the `val` in this log entry is empty
 const std::uint16_t kTombstone = 0xFFFF;
 
+namespace log_internal {
 RawHeader::RawHeader(std::uint8_t* const data) : data_(data) {}
 
 std::uint8_t RawHeader::key_len() const { return data_[kCrc32Len]; }
@@ -71,15 +72,17 @@ std::uint32_t RawHeader::crc32() const {
   return absl::little_endian::Load32(&data_[0]);
 }
 
+}  // namespace log_internal
+
 Entry::Entry(std::uint32_t length)
     : ptr_(new uint8_t[length]), key_len_(0), value_len_(0) {}
 
 absl::Span<const std::uint8_t> Entry::key() const {
-  return {raw_ptr() + kHeaderLen, key_len_};
+  return {raw_ptr() + log_internal::kHeaderLen, key_len_};
 }
 
 absl::Span<const std::uint8_t> Entry::value() const {
-  return {raw_ptr() + kHeaderLen + key_len_, value_len_};
+  return {raw_ptr() + log_internal::kHeaderLen + key_len_, value_len_};
 }
 
 Reader::Reader(store::Store* src, bool checksum)
@@ -120,12 +123,13 @@ absl::StatusOr<bool> Reader::Read(const Position& pos, std::uint8_t key_len,
 
 absl::StatusOr<absl::optional<Entry>> Reader::Read(
     const Position& pos, std::uint8_t key_len) noexcept {
-  std::uint32_t entry_len = kHeaderLen + key_len + pos.value_len;
+  std::uint32_t entry_len = log_internal::kHeaderLen + key_len + pos.value_len;
   Entry entry(entry_len);
 
-  auto read_len = src_->ReadAt(
-      store::Position(pos.file_id, pos.value_pos - key_len - kHeaderLen),
-      {entry.raw_ptr(), entry_len});
+  auto read_len =
+      src_->ReadAt(store::Position(pos.file_id, pos.value_pos - key_len -
+                                                    log_internal::kHeaderLen),
+                   {entry.raw_ptr(), entry_len});
   if (!read_len.ok()) {
     return read_len.status();
   }
@@ -136,7 +140,7 @@ absl::StatusOr<absl::optional<Entry>> Reader::Read(
   if (*read_len != entry_len) {
     return absl::InternalError(kErrBadEntry);
   }
-  RawHeader header(entry.raw_ptr());
+  log_internal::RawHeader header(entry.raw_ptr());
   entry.set_key_len(header.key_len());
   entry.set_value_len(header.value_len());
 
@@ -184,30 +188,31 @@ absl::Status Writer::AppendInner(
   auto key_len = static_cast<std::uint8_t>(key.size());
   auto value_len = static_cast<std::uint16_t>(value.size());
 
-  std::uint32_t buf_len = kHeaderLen + key_len + value_len;
+  std::uint32_t buf_len = log_internal::kHeaderLen + key_len + value_len;
   std::unique_ptr<std::uint8_t[]> buf(new std::uint8_t[buf_len]);
 
-  RawHeader header(buf.get());
+  log_internal::RawHeader header(buf.get());
   header.set_key_len(key_len);
-  std::memcpy(&buf[kHeaderLen], key.data(), key_len);
+  std::memcpy(&buf[log_internal::kHeaderLen], key.data(), key_len);
 
   if (value.size() > 0) {
     header.set_value_len(value_len);
-    std::memcpy(&buf[kHeaderLen + key.size()], value.data(), value_len);
+    std::memcpy(&buf[log_internal::kHeaderLen + key.size()], value.data(),
+                value_len);
   } else {
     header.set_tombstone();
   }
 
-  header.set_crc32(header.calc_actual_crc(&buf[kHeaderLen]));
+  header.set_crc32(header.calc_actual_crc(&buf[log_internal::kHeaderLen]));
 
-  auto status = dest_->Append(
-      {buf.get(), buf_len}, [=, &success_callback](store::Position pos) {
-        success_callback(Position{
-            pos.file_id,
-            pos.offset_in_file + kHeaderLen + key_len,  // value_pos
-            value_len                                   // value_len
-        });
-      });
+  auto status = dest_->Append({buf.get(), buf_len}, [=, &success_callback](
+                                                        store::Position pos) {
+    success_callback(Position{
+        pos.file_id,
+        pos.offset_in_file + log_internal::kHeaderLen + key_len,  // value_pos
+        value_len                                                 // value_len
+    });
+  });
   if (!status.ok()) {
     return status;
   }
