@@ -66,10 +66,11 @@ struct DataDistribution {
 class Merger {
  public:
   Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
-         std::function<bool(const log::Key&)> key_valid_fn,
-         std::function<absl::Status(const log::Key&&)> re_insert_fn);
+         std::function<bool(const log::Key&)>&& key_valid_fn,
+         std::function<absl::Status(const log::Key&&)>&& re_insert_fn);
 
-  DataDistribution DataDistribution(std::uint32_t file_id) noexcept;
+  absl::StatusOr<struct DataDistribution> DataDistribution(
+      std::uint32_t file_id) noexcept;
 
   absl::Status Merge(std::uint32_t file_id) noexcept;
 

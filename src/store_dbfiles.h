@@ -1,6 +1,7 @@
 #ifndef MYBITCASK_SRC_STORE_DBFILES_H_
 #define MYBITCASK_SRC_STORE_DBFILES_H_
 
+#include "absl/types/span.h"
 #include "mybitcask/internal/log.h"
 #include "store_hint.h"
 
@@ -15,16 +16,18 @@ class DBFiles {
 
   const ghc::filesystem::path& path() const { return path_; }
 
-  const std::vector<file_id_t>& active_log_files() const {
-    return active_log_files_;
+  absl::Span<const file_id_t> active_log_files() const {
+    return absl::MakeSpan(active_log_files_);
   }
-  const std::vector<file_id_t>& older_log_files() const {
-    return older_log_files_;
+  absl::Span<const file_id_t> older_log_files() const {
+    return absl::MakeSpan(older_log_files_);
   }
 
   file_id_t latest_file_id() const;
 
-  const std::vector<file_id_t>& hint_files() const { return hint_files_; }
+  absl::Span<const file_id_t> hint_files() const {
+    return absl::MakeSpan(hint_files_);
+  }
 
   KeyIter key_iter(const log::Reader* log_reader) const;
 
