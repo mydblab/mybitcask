@@ -88,6 +88,19 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
   return absl::OkStatus();
 }
 
+Merger::Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
+               std::function<bool(const log::Key&)> key_valid_fn,
+               std::function<absl::Status(const log::Key&&)> re_insert_fn)
+    : log_reader_(log_reader),
+      path_(path),
+      key_valid_fn_(key_valid_fn),
+      re_insert_fn_(re_insert_fn) {}
+
+absl::Status Merger::Merge(std::uint32_t file_id) noexcept {
+  // KeyIter(&path_, file_id).Fold();
+  return absl::OkStatus();
+}
+
 KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
     : path_(path), hint_file_id_(hint_file_id) {}
 

@@ -26,16 +26,18 @@ void GenerateHint::Start(std::size_t interval_seconds) {
   stop_fn_ = absl::make_optional(timer::SetInterval(
       [&]() {
         store::DBFiles dbfiles(db_path_);
-        for (auto log_file_id : dbfiles.active_log_files()) {
-          auto status = hint_generator_.Generate(log_file_id);
+        auto active_log_files = dbfiles.active_log_files();
+        for (auto it = active_log_files.begin();
+             it != active_log_files.end() - 1; it++) {
+          auto status = hint_generator_.Generate(*it);
           if (!status.ok()) {
             spdlog::warn(
-                "Hint file generation failed. Log file id: {}, status: {}",
-                log_file_id, status.ToString());
+                "Hint file generation failed. Log file id: {}, status: {}", *it,
+                status.ToString());
             break;
           }
           spdlog::info("Hint file generated successfully. Log file id: {}",
-                       log_file_id);
+                       *it);
         }
       },
       std::chrono::seconds(interval_seconds)));

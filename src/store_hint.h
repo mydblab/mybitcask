@@ -28,7 +28,6 @@ const std::uint32_t kValLenLen = 2;
 const std::uint32_t kValPosLen = 4;
 const std::uint32_t kHeaderLen = kKeyLenLen + kValLenLen + kValPosLen;
 
-
 class RawHeader final {
  public:
   RawHeader(std::uint8_t* const data);
@@ -57,6 +56,21 @@ class Generator {
  private:
   log::Reader* log_reader_;
   ghc::filesystem::path path_;
+};
+
+class Merger {
+ public:
+  Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
+         std::function<bool(const log::Key&)> key_valid_fn,
+         std::function<absl::Status(const log::Key&&)> re_insert_fn);
+
+  absl::Status Merge(std::uint32_t file_id) noexcept;
+
+ private:
+  log::Reader* log_reader_;
+  ghc::filesystem::path path_;
+  std::function<bool(const log::Key&)> key_valid_fn_;
+  std::function<absl::Status(const log::Key&&)> re_insert_fn_;
 };
 
 class KeyIter {
