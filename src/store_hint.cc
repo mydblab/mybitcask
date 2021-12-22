@@ -89,55 +89,6 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
   return absl::OkStatus();
 }
 
-Merger::Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
-               std::function<bool(const log::Key&)>&& key_valid_fn,
-               std::function<absl::Status(const log::Key&&)>&& re_insert_fn)
-    : log_reader_(log_reader),
-      path_(path),
-      key_valid_fn_(std::move(key_valid_fn)),
-      re_insert_fn_(std::move(re_insert_fn)) {}
-
-absl::StatusOr<struct DataDistribution> Merger::DataDistribution(
-    std::uint32_t file_id) noexcept {
-  auto keyiter = KeyIter(&path_, file_id);
-
-  return keyiter.Fold<struct DataDistribution>(
-      {0, 0}, [&](struct DataDistribution&& acc, log::Key&& key) {
-        std::uint32_t data_len = key.key_data.size();
-        if (key.value_pos.has_value()) {
-          data_len += key.value_pos.value().value_len;
-        }
-        if (key_valid_fn_(key)) {
-          acc.valid_data_len += data_len;
-        }
-        acc.total_data_len += data_len;
-        return acc;
-      });
-}
-
-absl::Status Merger::Merge(std::uint32_t file_id) noexcept {
-  auto keyiter = KeyIter(&path_, file_id);
-  auto valid_keys = keyiter.Fold<std::vector<log::Key>>(
-      std::vector<log::Key>(),
-      [&](std::vector<log::Key>&& acc, log::Key&& key) {
-        if (key_valid_fn_(key)) {
-          acc.push_back(std::move(key));
-        }
-        return acc;
-      });
-  if (!valid_keys.ok()) {
-    return valid_keys.status();
-  }
-  for (auto key : *valid_keys) {
-    auto status = re_insert_fn_(std::move(key));
-    if (!status.ok()) {
-      return status;
-    }
-  }
-
-  return absl::OkStatus();
-}
-
 KeyIter::KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id)
     : path_(path), hint_file_id_(hint_file_id) {}
 

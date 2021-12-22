@@ -63,22 +63,64 @@ struct DataDistribution {
   std::uint32_t total_data_len;
 };
 
+template <typename Container>
 class Merger {
  public:
-  Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
-         std::function<bool(const log::Key&)>&& key_valid_fn,
-         std::function<absl::Status(const log::Key&&)>&& re_insert_fn);
+  Merger(
+      log::Reader* log_reader, const ghc::filesystem::path& path,
+      std::function<bool(const log::Key<Container>&)>&& key_valid_fn,
+      std::function<absl::Status(const log::Key<Container>&&)>&& re_insert_fn)
+      : log_reader_(log_reader),
+        path_(path),
+        key_valid_fn_(std::move(key_valid_fn)),
+        re_insert_fn_(std::move(re_insert_fn)){};
 
   absl::StatusOr<struct DataDistribution> DataDistribution(
-      std::uint32_t file_id) noexcept;
+      std::uint32_t file_id) noexcept {
+    auto keyiter = KeyIter(&path_, file_id);
+    return keyiter.template Fold<struct DataDistribution, Container>(
+        {0, 0}, [&](struct DataDistribution&& acc, log::Key<Container>&& key) {
+          std::uint32_t data_len = key.key_data.size();
+          if (key.value_pos.has_value()) {
+            data_len += key.value_pos.value().value_len;
+          }
+          if (key_valid_fn_(key)) {
+            acc.valid_data_len += data_len;
+          }
+          acc.total_data_len += data_len;
+          return acc;
+        });
+  }
 
-  absl::Status Merge(std::uint32_t file_id) noexcept;
+  absl::Status Merge(std::uint32_t file_id) noexcept {
+    auto keyiter = KeyIter(&path_, file_id);
+    auto valid_keys =
+        keyiter.template Fold<std::vector<log::Key<Container>>, Container>(
+            std::vector<log::Key<Container>>(),
+            [&](std::vector<log::Key<Container>>&& acc,
+                log::Key<Container>&& key) {
+              if (key_valid_fn_(key)) {
+                acc.push_back(std::move(key));
+              }
+              return acc;
+            });
+    if (!valid_keys.ok()) {
+      return valid_keys.status();
+    }
+    for (auto key : *valid_keys) {
+      auto status = re_insert_fn_(std::move(key));
+      if (!status.ok()) {
+        return status;
+      }
+    }
+    return absl::OkStatus();
+  }
 
  private:
   log::Reader* log_reader_;
   ghc::filesystem::path path_;
-  std::function<bool(const log::Key&)> key_valid_fn_;
-  std::function<absl::Status(const log::Key&&)> re_insert_fn_;
+  std::function<bool(const log::Key<Container>&)> key_valid_fn_;
+  std::function<absl::Status(const log::Key<Container>&&)> re_insert_fn_;
 };
 
 class KeyIter {

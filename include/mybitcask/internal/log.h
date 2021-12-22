@@ -182,34 +182,38 @@ void resize(Container& c, typename Container::size_type count) {
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> std::enable_if_t<
-    std::is_same_v<typename Container::value_type, T> &&
-        !std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
-    T*> {
+auto data(Container& c) -> typename std::enable_if<
+    std::is_same<typename Container::value_type, T>::value &&
+        !std::is_const<
+            typename std::remove_pointer<decltype(c.data())>::type>::value,
+    T*>::type {
   return c.data();
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> std::enable_if_t<
-    std::is_same_v<typename Container::value_type, T> &&
-        std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
-    T*> {
+auto data(Container& c) -> typename std::enable_if<
+    std::is_same<typename Container::value_type, T>::value &&
+        std::is_const<
+            typename std::remove_pointer<decltype(c.data())>::type>::value,
+    T*>::type {
   return const_cast<T*>(c.data());
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> std::enable_if_t<
-    !std::is_same_v<typename Container::value_type, T> &&
-        !std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
-    T*> {
+auto data(Container& c) -> typename std::enable_if<
+    !std::is_same<typename Container::value_type, T>::value &&
+        !std::is_const<
+            typename std::remove_pointer<decltype(c.data())>::type>::value,
+    T*>::type {
   return reinterpret_cast<T*>(c.data());
 }
 
 template <typename Container, typename T>
-auto data(Container& c) -> std::enable_if_t<
-    !std::is_same_v<typename Container::value_type, T> &&
-        std::is_const_v<std::remove_pointer_t<decltype(c.data())>>,
-    T*> {
+auto data(Container& c) -> typename std::enable_if<
+    !std::is_same<typename Container::value_type, T>::value &&
+        std::is_const<
+            typename std::remove_pointer<decltype(c.data())>::type>::value,
+    T*>::type {
   return reinterpret_cast<T*>(
       const_cast<typename Container::value_type*>(c.data()));
 }
