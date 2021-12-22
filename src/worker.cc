@@ -1,9 +1,12 @@
 #include "worker.h"
-#include <chrono>
 #include "mybitcask/internal/store.h"
-#include "spdlog/spdlog.h"
+#include "store_dbfiles.h"
 #include "store_hint.h"
 #include "timer.h"
+
+#include <chrono>
+#include "spdlog/spdlog.h"
+
 namespace mybitcask {
 namespace worker {
 
@@ -22,8 +25,8 @@ GenerateHint::~GenerateHint() {
 void GenerateHint::Start(std::size_t interval_seconds) {
   stop_fn_ = absl::make_optional(timer::SetInterval(
       [&]() {
-        store::LogFiles logfiles(db_path_);
-        for (auto log_file_id : logfiles.active_log_files()) {
+        store::DBFiles dbfiles(db_path_);
+        for (auto log_file_id : dbfiles.active_log_files()) {
           auto status = hint_generator_.Generate(log_file_id);
           if (!status.ok()) {
             spdlog::warn(

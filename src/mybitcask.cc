@@ -1,13 +1,14 @@
 #include "mybitcask/mybitcask.h"
+#include "store_dbfiles.h"
 
 namespace mybitcask {
 
 MyBitcask::MyBitcask(const ghc::filesystem::path& data_dir,
                      std::uint32_t dead_bytes_threshold, bool checksum)
     : index_(), index_rwlock_() {
-  store::LogFiles log_files(data_dir);
   store_ = std::unique_ptr<store::Store>(
-      new store::Store(log_files, dead_bytes_threshold));
+      new store::Store(data_dir, store::DBFiles(data_dir).latest_file_id(),
+                       dead_bytes_threshold));
   log_reader_ = log::Reader(store_.get(), checksum);
   log_writer_ = log::Writer(store_.get());
 }

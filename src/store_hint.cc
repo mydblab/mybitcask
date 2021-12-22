@@ -12,12 +12,6 @@ namespace hint {
 // kTombstone(0xFFFF) then this record is a tombstone record
 const std::uint16_t kTombstone = 0xFFFF;
 
-/* const std::uint32_t kKeyLenLen = 1;
-const std::uint32_t kValLenLen = 2;
-const std::uint32_t kValPosLen = 4;
-const std::uint32_t kHeaderLen = kKeyLenLen + kValLenLen + kValPosLen;
-*/
-
 RawHeader::RawHeader(std::uint8_t* const data) : data_(data) {}
 
 std::uint8_t RawHeader::key_len() const { return data_[0]; }

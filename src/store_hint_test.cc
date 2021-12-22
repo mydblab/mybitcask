@@ -1,6 +1,7 @@
 #include "store_hint.h"
 #include "mybitcask/internal/log.h"
 #include "mybitcask/internal/store.h"
+#include "store_dbfiles.h"
 #include "test_util.h"
 
 #include "gtest/gtest.h"
@@ -12,7 +13,8 @@ namespace hint {
 TEST(HintTest, GenerateAndFold) {
   auto tmpdir = test::MakeTempDir("mybitcask_store_hint_");
   ASSERT_TRUE(tmpdir.ok());
-  store::Store store(store::LogFiles(tmpdir->path()), 2048);
+  store::Store store(tmpdir->path(),
+                     store::DBFiles(tmpdir->path()).latest_file_id(), 2048);
   log::Writer log_writer(&store);
   log::Reader log_reader(&store, false);
 
@@ -25,8 +27,8 @@ TEST(HintTest, GenerateAndFold) {
   }
   Generator gen(&log_reader, tmpdir->path());
 
-  store::LogFiles log_files(tmpdir->path());
-  for (auto file_id : log_files.active_log_files()) {
+  store::DBFiles dbfiles(tmpdir->path());
+  for (auto file_id : dbfiles.active_log_files()) {
     ASSERT_TRUE(gen.Generate(file_id).ok());
   }
   struct Void {};
@@ -35,8 +37,8 @@ TEST(HintTest, GenerateAndFold) {
     bool is_tombstone;
   };
   std::vector<TestKey> fold_keys;
-  log_files = store::LogFiles(tmpdir->path());
-  for (auto file_id : log_files.hint_files()) {
+  dbfiles = store::DBFiles(tmpdir->path());
+  for (auto file_id : dbfiles.hint_files()) {
     auto status =
         KeyIter(&tmpdir->path(), file_id)
             .Fold<Void>(Void(), [&](Void&&, log::Key&& key) {

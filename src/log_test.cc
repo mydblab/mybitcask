@@ -1,6 +1,8 @@
 #include "mybitcask/internal/log.h"
 #include "mybitcask/internal/io.h"
+#include "mybitcask/internal/store.h"
 #include "mybitcask/mybitcask.h"
+#include "store_dbfiles.h"
 
 #include "absl/base/internal/endian.h"
 #include "absl/types/optional.h"
@@ -37,7 +39,9 @@ absl::StatusOr<absl::optional<Entry>> log_read(Reader* log_reader,
 TEST(LogReaderWriterTest, NormalReadWriter) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
+  store::Store store(tmpdir->path(),
+                     store::DBFiles(tmpdir->path()).latest_file_id(),
+                     128 * 1024 * 1024);
   Reader log_reader(&store, false);
   Writer log_writer(&store);
 
@@ -118,7 +122,9 @@ class StoreUtil {
 TEST(LogWriterTest, ReadWrongEntry) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
+  store::Store store(tmpdir->path(),
+                     store::DBFiles(tmpdir->path()).latest_file_id(),
+                     128 * 1024 * 1024);
   Reader log_reader(&store, true);
 
   StoreUtil w(&store);
@@ -158,7 +164,9 @@ TEST(LogWriterTest, ReadWrongEntry) {
 TEST(LogWriterTest, AppendWithWrongKVLength) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  store::Store store(store::LogFiles(tmpdir->path()), 128 * 1024 * 1024);
+  store::Store store(tmpdir->path(),
+                     store::DBFiles(tmpdir->path()).latest_file_id(),
+                     128 * 1024 * 1024);
   Writer log_writer(&store);
 
   // Append entry with empty key
@@ -211,7 +219,8 @@ TEST(LogWriterTest, AppendWithWrongKVLength) {
 TEST(KeyIterTest, Fold) {
   auto tmpdir = test::MakeTempDir("mybitcask_log_");
   ASSERT_TRUE(tmpdir.ok());
-  store::Store store(store::LogFiles(tmpdir->path()), 512);
+  store::Store store(tmpdir->path(),
+                     store::DBFiles(tmpdir->path()).latest_file_id(), 512);
   Writer log_writer(&store);
   Reader log_reader(&store, false);
 
@@ -223,7 +232,7 @@ TEST(KeyIterTest, Fold) {
     ASSERT_TRUE(test::AppendTestEntry(&log_writer, entry).ok());
   }
 
-  store::LogFiles log_files(tmpdir->path());
+  store::DBFiles log_files(tmpdir->path());
   store::file_id_t latest_file_id;
 
   if (!log_files.active_log_files().empty()) {

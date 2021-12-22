@@ -14,12 +14,6 @@
 
 namespace mybitcask {
 
-namespace log {
-class Reader;
-class KeyIter;
-class Key;
-}  // namespace log
-
 struct Position;
 
 namespace store {
@@ -32,32 +26,6 @@ struct Position {
 
   file_id_t file_id;
   std::uint32_t offset_in_file;
-};
-
-class LogFiles {
- public:
-  LogFiles(const ghc::filesystem::path& path);
-
-  const ghc::filesystem::path& path() const { return path_; }
-
-  const std::vector<file_id_t>& active_log_files() const {
-    return active_log_files_;
-  }
-  const std::vector<file_id_t>& older_log_files() const {
-    return older_log_files_;
-  }
-
-  const std::vector<file_id_t>& hint_files() const { return hint_files_; }
-
-  template <typename T>
-  absl::StatusOr<T> FoldKeys(T init, std::function<T(T&&, log::Key&&)> f,
-                             log::Reader* log_reader) const noexcept;
-
- private:
-  ghc::filesystem::path path_;
-  std::vector<file_id_t> active_log_files_;
-  std::vector<file_id_t> older_log_files_;
-  std::vector<file_id_t> hint_files_;
 };
 
 class Store {
@@ -73,7 +41,8 @@ class Store {
   absl::Status Sync() noexcept;
 
   Store() = delete;
-  Store(const LogFiles& log_files, std::uint32_t dead_bytes_threshold);
+  Store(const ghc::filesystem::path path, file_id_t latest_file_id,
+        std::uint32_t dead_bytes_threshold);
 
   ~Store();
 
