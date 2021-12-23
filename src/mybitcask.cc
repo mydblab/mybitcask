@@ -24,10 +24,18 @@ absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
   if (!pos.has_value()) {
     return false;
   }
-  auto found = log_reader_.Read(
-      *pos, static_cast<std::uint32_t>(key.size()),
-      const_cast<std::uint8_t*>(
-          reinterpret_cast<const std::uint8_t*>(value->data())));
+  std::uint8_t* value_ptr;
+  std::vector<std::uint8_t> trash;
+  if (value) {
+    value->resize(pos->value_len);
+    value_ptr = const_cast<std::uint8_t*>(
+        reinterpret_cast<const std::uint8_t*>(value->data()));
+  } else {
+    trash.resize(pos->value_len);
+    value_ptr = trash.data();
+  }
+  auto found =
+      log_reader_.Read(*pos, static_cast<std::uint8_t>(key.size()), value_ptr);
 
   if (!found.ok()) {
     return found.status();

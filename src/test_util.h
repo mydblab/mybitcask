@@ -75,8 +75,11 @@ struct TestEntry {
   absl::optional<std::string> value;
 };
 
-// Generate a random entry
+// Generate a random entries
 TestEntry RandomEntry();
+
+// Generate n random entry
+std::vector<TestEntry> RandomEntries(std::size_t n);
 
 absl::Status AppendTestEntry(
     log::Writer* w, const TestEntry& test_entry,

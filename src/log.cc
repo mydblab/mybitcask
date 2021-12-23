@@ -98,10 +98,8 @@ absl::StatusOr<bool> Reader::Read(const Position& pos, std::uint8_t key_len,
     if (!entry->has_value()) {
       return false;
     }
-    if (value) {
-      auto entry_val = (*entry)->value();
-      std::memcpy(value, entry_val.data(), entry_val.length());
-    }
+    auto entry_val = (*entry)->value();
+    std::memcpy(value, entry_val.data(), entry_val.length());
     return true;
   }
 

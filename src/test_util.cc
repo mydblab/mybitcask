@@ -135,6 +135,15 @@ TestEntry RandomEntry() {
   return TestEntry{RandomString(0x1, 0xF0), value};
 }
 
+std::vector<TestEntry> RandomEntries(std::size_t n) {
+  std::vector<TestEntry> ret;
+  ret.reserve(n);
+  for (int i = 0; i < n; i++) {
+    ret.push_back(RandomEntry());
+  }
+  return ret;
+}
+
 absl::Status AppendTestEntry(
     log::Writer* w, const TestEntry& test_entry,
     const std::function<void(Position)>& success_callback) {

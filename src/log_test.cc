@@ -224,11 +224,11 @@ TEST(KeyIterTest, Fold) {
   Writer log_writer(&store);
   Reader log_reader(&store, false);
 
-  std::vector<test::TestEntry> entrys;
-  int entrys_size = 100;
-  for (int i = 0; i < entrys_size; i++) {
+  std::vector<test::TestEntry> entries;
+  int entries_size = 100;
+  for (int i = 0; i < entries_size; i++) {
     auto entry = test::RandomEntry();
-    entrys.push_back(entry);
+    entries.push_back(entry);
     ASSERT_TRUE(test::AppendTestEntry(&log_writer, entry).ok());
   }
 
@@ -258,10 +258,10 @@ TEST(KeyIterTest, Fold) {
         << "Failed to fold keys; err: " << status.status().message();
   }
 
-  ASSERT_EQ(entrys.size(), fold_keys.size());
+  ASSERT_EQ(entries.size(), fold_keys.size());
   for (int i = 0; i < fold_keys.size(); i++) {
-    EXPECT_EQ(entrys[i].key, fold_keys[i].key);
-    EXPECT_EQ(!entrys[i].value.has_value(), fold_keys[i].is_tombstone);
+    EXPECT_EQ(entries[i].key, fold_keys[i].key);
+    EXPECT_EQ(!entries[i].value.has_value(), fold_keys[i].is_tombstone);
   }
 }
 
