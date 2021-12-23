@@ -22,6 +22,9 @@ const std::regex kCommandGetRegex("get\\s+(\\w+)\\s*");
 const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s*");
 
 const std::string kNilOutput = "(nil)";
+
+std::ostream& error() { return std::cerr << "(error): "; }
+
 int main(int argc, char** argv) {
   std::string dbpath;
   bool check_crc = false;
@@ -40,8 +43,7 @@ int main(int argc, char** argv) {
   };
   auto db = mybitcask::Open(dbpath, dead_bytes_threshold, check_crc);
   if (!db.ok()) {
-    std::cerr << "Unable to start mybitask. error: " << db.status()
-              << std::endl;
+    error() << "Unable to start mybitask. error: " << db.status() << std::endl;
     return 0;
   }
 
@@ -121,13 +123,13 @@ int main(int argc, char** argv) {
     if (std::regex_match(input, sm, kCommandSetRegex)) {
       auto status = (*db)->Insert(sm.str(1), sm.str(2));
       if (!status.ok()) {
-        std::cerr << status << std::endl;
+        error() << status << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandGetRegex)) {
       std::string v;
       auto found = (*db)->Get(sm.str(1), &v);
       if (!found.ok()) {
-        std::cerr << found.status() << std::endl;
+        error() << found.status() << std::endl;
       } else if (*found) {
         std::cout << v << std::endl;
       } else {
@@ -136,10 +138,10 @@ int main(int argc, char** argv) {
     } else if (std::regex_match(input, sm, kCommandRmRegex)) {
       auto status = (*db)->Delete(sm.str(1));
       if (!status.ok()) {
-        std::cerr << status << std::endl;
+        error() << status << std::endl;
       }
     } else {
-      std::cerr << "!23" << std::endl;
+      error() << "Unrecognized command." << std::endl;
     }
   }
 }
