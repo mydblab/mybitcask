@@ -1,4 +1,7 @@
-#include "worker.h"
+#include "worker_generate_hint.h"
+#include "spdlog/spdlog.h"
+#include "store_dbfiles.h"
+#include "timer.h"
 
 namespace mybitcask {
 namespace worker {

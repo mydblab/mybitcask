@@ -1,10 +1,11 @@
-#ifndef MYBITCASK_SRC_WORKER_H_
-#define MYBITCASK_SRC_WORKER_H_
+#ifndef MYBITCASK_SRC_WORKER_MERGE_H_
+#define MYBITCASK_SRC_WORKER_MERGE_H_
 
 #include <chrono>
 #include "absl/types/optional.h"
 #include "ghc/filesystem.hpp"
 #include "mybitcask/internal/log.h"
+#include "mybitcask/internal/worker.h"
 #include "spdlog/spdlog.h"
 #include "store_dbfiles.h"
 #include "store_filename.h"
@@ -14,27 +15,13 @@
 namespace mybitcask {
 namespace worker {
 
-class GenerateHint {
- public:
-  GenerateHint(log::Reader* log_reader, const ghc::filesystem::path& db_path);
-
-  void Start(std::size_t interval_seconds);
-
-  ~GenerateHint();
-
- private:
-  ghc::filesystem::path db_path_;
-  absl::optional<std::function<void()>> stop_fn_;
-  store::hint::Generator hint_generator_;
-};
-
 template <typename Container>
-class Merge {
+class Merge final : public Worker {
  public:
   Merge(log::Reader* log_reader, const ghc::filesystem::path& db_path,
         float merge_threshold,
         std::function<bool(const log::Key<Container>&)>&& key_valid_fn,
-        std::function<absl::Status(const log::Key<Container>&&)>&& re_insert_fn)
+        std::function<absl::Status(log::Key<Container>&&)>&& re_insert_fn)
       : db_path_(db_path),
         stop_fn_(absl::nullopt),
         merge_threshold_(merge_threshold),
@@ -52,7 +39,8 @@ class Merge {
             auto data_distribution = merger_.DataDistribution(file_id);
             if (!data_distribution.ok()) {
               spdlog::warn(
-                  "Failed to merge file. Unable to get datadistribution, file "
+                  "Failed to merge file. Unable to get datadistribution, "
+                  "file "
                   "id: "
                   "{}, status: {}",
                   file_id, data_distribution.status().ToString());
@@ -92,4 +80,4 @@ class Merge {
 }  // namespace worker
 }  // namespace mybitcask
 
-#endif  // MYBITCASK_SRC_WORKER_H_
+#endif  // MYBITCASK_SRC_WORKER_MERGE_H_

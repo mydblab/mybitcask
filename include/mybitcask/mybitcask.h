@@ -3,6 +3,7 @@
 
 #include "internal/log.h"
 #include "internal/store.h"
+#include "internal/worker.h"
 
 #include "absl/container/btree_map.h"
 #include "absl/status/statusor.h"
@@ -42,12 +43,21 @@ class MyBitcask {
 
  private:
   absl::optional<Position> get_position(absl::string_view key);
+  bool key_valid(const log::Key<std::string>& key);
+  void setup_worker();
 
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
   std::unique_ptr<store::Store> store_;
   log::Reader log_reader_;
   log::Writer log_writer_;
+
+  std::unique_ptr<worker::Worker> generate_hint_worker_;
+  std::unique_ptr<worker::Worker> merge_worker_;
+
+  friend absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
+      const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
+      bool checksum);
 };
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(

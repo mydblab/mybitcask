@@ -66,10 +66,9 @@ struct DataDistribution {
 template <typename Container>
 class Merger {
  public:
-  Merger(
-      log::Reader* log_reader, const ghc::filesystem::path& path,
-      std::function<bool(const log::Key<Container>&)>&& key_valid_fn,
-      std::function<absl::Status(const log::Key<Container>&&)>&& re_insert_fn)
+  Merger(log::Reader* log_reader, const ghc::filesystem::path& path,
+         std::function<bool(const log::Key<Container>&)>&& key_valid_fn,
+         std::function<absl::Status(log::Key<Container>&&)>&& re_insert_fn)
       : log_reader_(log_reader),
         path_(path),
         key_valid_fn_(std::move(key_valid_fn)),
@@ -120,7 +119,7 @@ class Merger {
   log::Reader* log_reader_;
   ghc::filesystem::path path_;
   std::function<bool(const log::Key<Container>&)> key_valid_fn_;
-  std::function<absl::Status(const log::Key<Container>&&)> re_insert_fn_;
+  std::function<absl::Status(log::Key<Container>&&)> re_insert_fn_;
 };
 
 class KeyIter {

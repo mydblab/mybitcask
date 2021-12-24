@@ -77,6 +77,8 @@ Store::Store(const ghc::filesystem::path path, file_id_t latest_file_id,
 
 Store::~Store() { auto _ = Sync(); }
 
+const ghc::filesystem::path& Store::Path() { return path_; }
+
 absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   latest_file_lock_.ReaderLock();
   if (file_id == latest_file_id_) {
