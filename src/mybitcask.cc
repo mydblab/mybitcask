@@ -5,6 +5,8 @@
 
 namespace mybitcask {
 
+const std::size_t kWorkerIntervalSeconds = 30;
+
 absl::Span<const std::uint8_t> MakeU8Span(const std::string& s) {
   return {reinterpret_cast<const std::uint8_t*>(s.data()), s.size()};
 }
@@ -79,6 +81,7 @@ absl::optional<Position> MyBitcask::get_position(absl::string_view key) {
 void MyBitcask::setup_worker() {
   generate_hint_worker_ = std::unique_ptr<worker::Worker>(
       new worker::GenerateHint(&log_reader_, store_->Path()));
+  generate_hint_worker_->Start(kWorkerIntervalSeconds);
   merge_worker_ =
       std::unique_ptr<worker::Worker>(new worker::Merge<std::string>(
           &log_reader_, store_->Path(), 0.2,
@@ -87,9 +90,9 @@ void MyBitcask::setup_worker() {
             return key_valid(key);
           },
           [&](log::Key<std::string>&& key) {
-            // re_insert_fn
-            return absl::OkStatus();
+            return re_insert(std::move(key));
           }));
+  merge_worker_->Start(kWorkerIntervalSeconds);
 }
 
 bool MyBitcask::key_valid(const log::Key<std::string>& key) {
@@ -101,6 +104,19 @@ bool MyBitcask::key_valid(const log::Key<std::string>& key) {
     return true;
   }
   return false;
+}
+
+absl::Status MyBitcask::re_insert(log::Key<std::string>&& key) {
+  std::string v;
+  auto found = Get(absl::string_view(key.key_data), &v);
+  if (!found.ok()) {
+    return found.status();
+  }
+  if (*found) {
+    return Insert(key.key_data, v);
+  } else {
+    return Delete(key.key_data);
+  }
 }
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(

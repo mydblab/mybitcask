@@ -44,6 +44,7 @@ class MyBitcask {
  private:
   absl::optional<Position> get_position(absl::string_view key);
   bool key_valid(const log::Key<std::string>& key);
+  absl::Status re_insert(log::Key<std::string>&& key);
   void setup_worker();
 
   absl::btree_map<std::string, Position> index_;
