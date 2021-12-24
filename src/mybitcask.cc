@@ -1,4 +1,5 @@
 #include "mybitcask/mybitcask.h"
+#include "spdlog/sinks/rotating_file_sink.h"
 #include "store_dbfiles.h"
 #include "worker_generate_hint.h"
 #include "worker_merge.h"
@@ -6,6 +7,9 @@
 namespace mybitcask {
 
 const std::size_t kWorkerIntervalSeconds = 30;
+const std::size_t kSpdlogMaxFileSize = 5 * 1024 * 1024;
+const std::size_t kSpdlogMaxFiles = 10;
+const std::string kSpdlogFilename = "logs/mybitcask.txt";
 
 absl::Span<const std::uint8_t> MakeU8Span(const std::string& s) {
   return {reinterpret_cast<const std::uint8_t*>(s.data()), s.size()};
@@ -20,7 +24,8 @@ MyBitcask::MyBitcask(std::unique_ptr<store::Store>&& store,
       log_reader_(std::move(log_reader)),
       log_writer_(std::move(log_writer)),
       generate_hint_worker_(nullptr),
-      merge_worker_(nullptr) {}
+      merge_worker_(nullptr),
+      logger_(nullptr) {}
 
 absl::StatusOr<bool> MyBitcask::Get(absl::string_view key, std::string* value,
                                     int try_num) noexcept {
@@ -79,12 +84,15 @@ absl::optional<Position> MyBitcask::get_position(absl::string_view key) {
 }
 
 void MyBitcask::setup_worker() {
+  logger_ = spdlog::rotating_logger_mt(
+      "worker", (store_->Path() / kSpdlogFilename).string(), kSpdlogMaxFileSize,
+      kSpdlogMaxFiles);
   generate_hint_worker_ = std::unique_ptr<worker::Worker>(
-      new worker::GenerateHint(&log_reader_, store_->Path()));
+      new worker::GenerateHint(&log_reader_, store_->Path(), logger_.get()));
   generate_hint_worker_->Start(kWorkerIntervalSeconds);
   merge_worker_ =
       std::unique_ptr<worker::Worker>(new worker::Merge<std::string>(
-          &log_reader_, store_->Path(), 0.2,
+          &log_reader_, store_->Path(), 0.2, logger_.get(),
           [&](const log::Key<std::string>& key) {
             // key_valid_fn
             return key_valid(key);

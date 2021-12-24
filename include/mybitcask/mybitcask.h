@@ -11,6 +11,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/types/optional.h"
 #include "ghc/filesystem.hpp"
+#include "spdlog/spdlog.h"
 
 #include <cstdint>
 #include <memory>
@@ -55,6 +56,7 @@ class MyBitcask {
 
   std::unique_ptr<worker::Worker> generate_hint_worker_;
   std::unique_ptr<worker::Worker> merge_worker_;
+  std::shared_ptr<spdlog::logger> logger_;
 
   friend absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
       const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
