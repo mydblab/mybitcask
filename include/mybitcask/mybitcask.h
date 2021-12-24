@@ -46,7 +46,7 @@ class MyBitcask {
   absl::optional<Position> get_position(absl::string_view key);
   bool key_valid(const log::Key<std::string>& key);
   absl::Status re_insert(log::Key<std::string>&& key);
-  void setup_worker();
+  void setup_worker(bool out_log);
 
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
@@ -60,12 +60,12 @@ class MyBitcask {
 
   friend absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
       const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-      bool checksum);
+      bool checksum, bool out_log = false);
 };
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
     const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-    bool checksum);
+    bool checksum, bool out_log);
 
 }  // namespace mybitcask
 

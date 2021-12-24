@@ -83,16 +83,23 @@ absl::optional<Position> MyBitcask::get_position(absl::string_view key) {
   return search->second;
 }
 
-void MyBitcask::setup_worker() {
-  logger_ = spdlog::rotating_logger_mt(
-      "worker", (store_->Path() / kSpdlogFilename).string(), kSpdlogMaxFileSize,
-      kSpdlogMaxFiles);
+void MyBitcask::setup_worker(bool out_log) {
+  if (out_log) {
+    logger_ = spdlog::rotating_logger_mt(
+        "worker", (store_->Path() / kSpdlogFilename).string(),
+        kSpdlogMaxFileSize, kSpdlogMaxFiles);
+    
+  } else {
+    // empty logger
+    logger_ = std::shared_ptr<spdlog::logger>(new spdlog::logger("worker"));
+  }
+
   generate_hint_worker_ = std::unique_ptr<worker::Worker>(
       new worker::GenerateHint(&log_reader_, store_->Path(), logger_.get()));
   generate_hint_worker_->Start(kWorkerIntervalSeconds);
   merge_worker_ =
       std::unique_ptr<worker::Worker>(new worker::Merge<std::string>(
-          &log_reader_, store_->Path(), 0.2, logger_.get(),
+          &log_reader_, store_->Path(), 0.2f, logger_.get(),
           [&](const log::Key<std::string>& key) {
             // key_valid_fn
             return key_valid(key);
@@ -129,7 +136,7 @@ absl::Status MyBitcask::re_insert(log::Key<std::string>&& key) {
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
     const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-    bool checksum) {
+    bool checksum, bool out_log) {
   store::DBFiles dbfiles(data_dir);
   std::unique_ptr<store::Store> store(new store::Store(
       dbfiles.path(), dbfiles.latest_file_id(), dead_bytes_threshold));
@@ -157,7 +164,7 @@ absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
   auto mybitcask = std::unique_ptr<MyBitcask>(
       new MyBitcask(std::move(store), std::move(log_reader),
                     std::move(log_writer), std::move(index).value()));
-  mybitcask->setup_worker();
+  mybitcask->setup_worker(out_log);
   return mybitcask;
 }
 
