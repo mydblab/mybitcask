@@ -1,10 +1,11 @@
 
 #include "mybitcask/mybitcask.h"
-
 #include <iostream>
 #include <regex>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include "mykv.h"
 #include "replxx.hxx"
 
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
@@ -24,43 +25,38 @@ const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s*");
 
 const std::string kNilOutput = "(nil)";
 
-std::ostream& error() { return std::cerr << "(error): "; }
+using syntax_highlight_t =
+    std::vector<std::pair<std::string, replxx::Replxx::Color>>;
+using keyword_highlight_t =
+    std::unordered_map<std::string, replxx::Replxx::Color>;
+
+const keyword_highlight_t kWordColor{
+    {"help", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"quit", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"exit", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"clear", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"get", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"set", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"rm", replxx::Replxx::Color::BRIGHTMAGENTA},
+};
+
+const syntax_highlight_t kRegexColor{
+    {"\".*?\"", replxx::Replxx::Color::BRIGHTGREEN},  // double quotes
+    {"\'.*?\'", replxx::Replxx::Color::BRIGHTGREEN},  // single quotes
+};
+
+int utf8str_codepoint_len(char const* s, int utf8len);
+void setup_replxx(replxx::Replxx& rx);
 
 void RunREPL(mybitcask::MyBitcask* db) {
   // init the repl
   replxx::Replxx rx;
+  setup_replxx(rx);
 
   std::cout << "Welcome to Mykv" << std::endl
             << "Press 'tab' to view autocompletions" << std::endl
             << "Type 'help' for help" << std::endl
             << "Type 'quit' or 'exit' to exit" << std::endl;
-
-  rx.set_completion_callback([](std::string const& context, int& contextLen) {
-    replxx::Replxx::completions_t completions;
-    if (contextLen == 0) {
-      return completions;
-    }
-    for (auto const& c : kCommands) {
-      if (c.rfind(context, 0) == 0) {
-        completions.emplace_back(c.c_str());
-      }
-    }
-    return completions;
-  });
-
-  rx.set_hint_callback([](std::string const& context, int& contextLen,
-                          replxx::Replxx::Color& color) {
-    replxx::Replxx::hints_t hints;
-    if (contextLen == 0) {
-      return hints;
-    }
-    for (auto const& c : kCommandsHint) {
-      if (c.rfind(context, 0) == 0) {
-        hints.emplace_back(c.c_str());
-      }
-    }
-    return hints;
-  });
 
   while (true) {
     char const* cinput = nullptr;
@@ -125,3 +121,84 @@ void RunREPL(mybitcask::MyBitcask* db) {
     }
   }
 }
+
+void setup_replxx(replxx::Replxx& rx) {
+  rx.set_completion_callback([&](std::string const& context, int& contextLen) {
+    replxx::Replxx::completions_t completions;
+    if (contextLen == 0) {
+      return completions;
+    }
+    for (auto const& c : kCommands) {
+      if (c.rfind(context, 0) == 0) {
+        completions.emplace_back(c.c_str());
+      }
+    }
+    return completions;
+  });
+
+  rx.set_hint_callback([&](std::string const& context, int& contextLen,
+                           replxx::Replxx::Color& color) {
+    replxx::Replxx::hints_t hints;
+    if (contextLen == 0) {
+      return hints;
+    }
+    for (auto const& c : kCommandsHint) {
+      if (c.rfind(context, 0) == 0) {
+        hints.emplace_back(c.c_str());
+      }
+    }
+    return hints;
+  });
+
+  rx.set_highlighter_callback(
+      [&](std::string const& context, replxx::Replxx::colors_t& colors) {
+        for (auto const& e : kRegexColor) {
+          size_t pos = 0;
+          std::string str = context;
+          std::smatch match;
+
+          while (std::regex_search(str, match, std::regex(e.first))) {
+            std::string c = match[0];
+            std::string prefix = match.prefix().str();
+            pos += utf8str_codepoint_len(prefix.c_str(),
+                                         static_cast<int>(prefix.length()));
+            int len =
+                utf8str_codepoint_len(c.c_str(), static_cast<int>(c.length()));
+
+            for (int i = 0; i < len; ++i) {
+              colors.at(pos + i) = e.second;
+            }
+
+            pos += len;
+            str = match.suffix();
+          }
+        }
+
+        // auto it = kWordColor.find(context);
+        // if (it != kWordColor.end()) {
+        //   for (int i = 0; i < context.size(); ++i) {
+        //     colors.at(i) = (*it).second;
+        //   }
+        // }
+      });
+}
+
+int utf8str_codepoint_len(char const* s, int utf8len) {
+  int codepointLen = 0;
+  unsigned char m4 = 128 + 64 + 32 + 16;
+  unsigned char m3 = 128 + 64 + 32;
+  unsigned char m2 = 128 + 64;
+  for (int i = 0; i < utf8len; ++i, ++codepointLen) {
+    char c = s[i];
+    if ((c & m4) == m4) {
+      i += 3;
+    } else if ((c & m3) == m3) {
+      i += 2;
+    } else if ((c & m2) == m2) {
+      i += 1;
+    }
+  }
+  return (codepointLen);
+}
+
+std::ostream& error() { return std::cerr << "(error): "; }
