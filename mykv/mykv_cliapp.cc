@@ -5,7 +5,7 @@
 #include "clipp.h"
 
 int main(int argc, char** argv) {
-  std::string dbpath = "";
+  std::string dbpath;
   bool check_crc = false;
   std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
 
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   };
   auto db = mybitcask::Open(dbpath, dead_bytes_threshold, check_crc);
   if (!db.ok()) {
-    std::cerr << "Unable to start mybitask. error: " << db.status()
+    error() << "Unable to start mybitask. error: " << db.status()
               << std::endl;
     return 0;
   }
