@@ -24,17 +24,18 @@ add_library(${PROJECT_NAME}
   src/store_hint.cc
   src/worker.cc
   src/store_dbfiles.cc
-)
+ "mykv/mykv.h")
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
 
 if (WIN32)
   target_sources(${PROJECT_NAME} PRIVATE src/io_windows.cc)
   target_sources(${PROJECT_NAME} PRIVATE src/filelock_windows.cc)
-else (WIN32)
+else ()
   target_sources(${PROJECT_NAME} PRIVATE src/io_posix.cc)
   target_sources(${PROJECT_NAME} PRIVATE src/filelock_posix.cc)
-endif (WIN32)
+endif ()
 
 target_link_libraries(${PROJECT_NAME}
   crc32c
@@ -55,6 +56,11 @@ add_executable(
   mykv
   mykv/mykv.cc
 )
+
+if (NOT EMSCRIPTEN)
+  target_sources(mykv PRIVATE mykv/mykv_cliapp.cc)
+endif()
+
 
 target_link_libraries(
   mykv

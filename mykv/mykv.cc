@@ -1,9 +1,11 @@
+
+#include "mybitcask/mybitcask.h"
+
 #include <iostream>
+#include <memory>
 #include <regex>
 #include <string>
-
-#include "clipp.h"
-#include "mybitcask/mybitcask.h"
+#include <vector>
 #include "replxx.hxx"
 
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
@@ -21,29 +23,7 @@ const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s+");
 const std::regex kCommandGetRegex("get\\s+(\\w+)\\s+");
 const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s+");
 
-int main(int argc, char** argv) {
-  std::string dbpath = "";
-  bool check_crc = false;
-  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
-
-  auto cli = (clipp::value("db path", dbpath),
-              clipp::option("-c", "--checksum")
-                  .set(check_crc)
-                  .doc("Enable CRC verification"),
-              clipp::option("-d", "--dead_bytes_threshold")
-                  .set(dead_bytes_threshold)
-                  .doc("maximum single log file size"));
-  if (!clipp::parse(argc, argv, cli)) {
-    std::cerr << clipp::make_man_page(cli, argv[0]);
-    return 0;
-  };
-  auto db = mybitcask::Open(dbpath, dead_bytes_threshold, check_crc);
-  if (!db.ok()) {
-    std::cerr << "Unable to start mybitask. error: " << db.status()
-              << std::endl;
-    return 0;
-  }
-
+void RunREPL(mybitcask::MyBitcask* db) {
   // init the repl
   replxx::Replxx rx;
 
@@ -118,13 +98,13 @@ int main(int argc, char** argv) {
     }
     std::smatch sm;
     if (std::regex_match(input, sm, kCommandSetRegex)) {
-      auto status = (*db)->Insert(sm.str(1), sm.str(2));
+      auto status = db->Insert(sm.str(1), sm.str(2));
       if (!status.ok()) {
         std::cerr << status << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandGetRegex)) {
       std::string v;
-      auto found = (*db)->Get(sm.str(1), &v, 2);
+      auto found = db->Get(sm.str(1), &v, 2);
       if (!found.ok()) {
         std::cerr << found.status() << std::endl;
       } else if (*found) {
@@ -133,7 +113,7 @@ int main(int argc, char** argv) {
         std::cout << "Key: '" << sm.str(1) << "' does not exist." << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandRmRegex)) {
-      auto status = (*db)->Delete(sm.str(1));
+      auto status = db->Delete(sm.str(1));
       if (!status.ok()) {
         std::cerr << status << std::endl;
       }

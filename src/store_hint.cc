@@ -51,13 +51,11 @@ absl::Status Generator::Generate(std::uint32_t file_id) noexcept {
     return absl::InternalError(kErrRead);
   }
 
+  using key_t = log::Key<std::vector<std::uint8_t>>;
   auto keys =
       log_reader_->key_iter(file_id)
-          .Fold<std::vector<log::Key<std::vector<std::uint8_t>>>,
-                std::vector<std::uint8_t>>(
-              std::vector<log::Key<std::vector<std::uint8_t>>>(),
-              [&](std::vector<log::Key<std::vector<std::uint8_t>>>&& acc,
-                  log::Key<std::vector<std::uint8_t>>&& key) {
+          .Fold<std::vector<key_t>, std::vector<std::uint8_t>>(
+              std::vector<key_t>(), [&](std::vector<key_t>&& acc, key_t&& key) {
                 acc.push_back(std::move(key));
                 return acc;
               });
