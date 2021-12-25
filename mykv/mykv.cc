@@ -1,11 +1,11 @@
 
-#include "mybitcask/mybitcask.h"
 #include <iostream>
 #include <regex>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "mykv.h"
+#include "clipp.h"
+#include "mybitcask/mybitcask.h"
 #include "replxx.hxx"
 
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
@@ -31,24 +31,46 @@ using keyword_highlight_t =
     std::unordered_map<std::string, replxx::Replxx::Color>;
 
 const keyword_highlight_t kWordColor{
-    {"help", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"quit", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"exit", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"clear", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"get", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"set", replxx::Replxx::Color::BRIGHTMAGENTA},
-    {"rm", replxx::Replxx::Color::BRIGHTMAGENTA},
+    {"help", replxx::Replxx::Color::YELLOW},
+    {"quit", replxx::Replxx::Color::YELLOW},
+    {"exit", replxx::Replxx::Color::YELLOW},
+    {"clear", replxx::Replxx::Color::YELLOW},
+    {"get", replxx::Replxx::Color::YELLOW},
+    {"set", replxx::Replxx::Color::YELLOW},
+    {"rm", replxx::Replxx::Color::YELLOW},
 };
 
 const syntax_highlight_t kRegexColor{
-    {"\".*?\"", replxx::Replxx::Color::BRIGHTGREEN},  // double quotes
-    {"\'.*?\'", replxx::Replxx::Color::BRIGHTGREEN},  // single quotes
+    {"\".*?\"", replxx::Replxx::Color::BROWN},  // double quotes
+    {"\'.*?\'", replxx::Replxx::Color::BROWN},  // single quotes
 };
 
 int utf8str_codepoint_len(char const* s, int utf8len);
 void setup_replxx(replxx::Replxx& rx);
+std::ostream& error() { return std::cerr << "(error): "; }
 
-void RunREPL(mybitcask::MyBitcask* db) {
+int main(int argc, char** argv) {
+  std::string dbpath;
+  bool check_crc = false;
+  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
+
+  auto cli = (clipp::value("db path", dbpath),
+              clipp::option("-c", "--checksum")
+                  .set(check_crc)
+                  .doc("Enable CRC verification"),
+              clipp::option("-d", "--dead_bytes_threshold")
+                  .set(dead_bytes_threshold)
+                  .doc("maximum single log file size"));
+  if (!clipp::parse(argc, argv, cli)) {
+    std::cerr << clipp::make_man_page(cli, argv[0]);
+    return 0;
+  };
+  auto db = mybitcask::Open(dbpath, dead_bytes_threshold, check_crc);
+  if (!db.ok()) {
+    error() << "Unable to start mybitask. error: " << db.status() << std::endl;
+    return 0;
+  }
+
   // init the repl
   replxx::Replxx rx;
   setup_replxx(rx);
@@ -97,13 +119,13 @@ void RunREPL(mybitcask::MyBitcask* db) {
     }
     std::smatch sm;
     if (std::regex_match(input, sm, kCommandSetRegex)) {
-      auto status = db->Insert(sm.str(1), sm.str(2));
+      auto status = (*db)->Insert(sm.str(1), sm.str(2));
       if (!status.ok()) {
         error() << status << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandGetRegex)) {
       std::string v;
-      auto found = db->Get(sm.str(1), &v);
+      auto found = (*db)->Get(sm.str(1), &v);
       if (!found.ok()) {
         error() << found.status() << std::endl;
       } else if (*found) {
@@ -112,7 +134,7 @@ void RunREPL(mybitcask::MyBitcask* db) {
         std::cout << kNilOutput << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandRmRegex)) {
-      auto status = db->Delete(sm.str(1));
+      auto status = (*db)->Delete(sm.str(1));
       if (!status.ok()) {
         error() << status << std::endl;
       }
@@ -174,12 +196,13 @@ void setup_replxx(replxx::Replxx& rx) {
           }
         }
 
-        // auto it = kWordColor.find(context);
-        // if (it != kWordColor.end()) {
-        //   for (int i = 0; i < context.size(); ++i) {
-        //     colors.at(i) = (*it).second;
-        //   }
-        // }
+        std::string command = context.substr(0, context.find(" "));
+        auto it = kWordColor.find(command);
+        if (it != kWordColor.end()) {
+          for (int i = 0; i < command.size(); ++i) {
+            colors.at(i) = (*it).second;
+          }
+        }
       });
 }
 
@@ -200,5 +223,3 @@ int utf8str_codepoint_len(char const* s, int utf8len) {
   }
   return (codepointLen);
 }
-
-std::ostream& error() { return std::cerr << "(error): "; }

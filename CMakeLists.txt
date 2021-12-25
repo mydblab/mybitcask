@@ -61,12 +61,8 @@ target_link_libraries(
   mykv
   ${PROJECT_NAME}
   replxx::replxx
+  clipp::clipp
 )
-
-if (NOT EMSCRIPTEN)
-  target_link_libraries(mykv clipp::clipp)
-  target_sources(mykv PRIVATE mykv/mykv_cliapp.cc)
-endif()
 
 # google test
 find_package(Gtest)
