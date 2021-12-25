@@ -2,7 +2,6 @@
 #include "mybitcask/mybitcask.h"
 
 #include <iostream>
-#include <memory>
 #include <regex>
 #include <string>
 #include <vector>
@@ -15,13 +14,17 @@ const std::vector<std::string> kCommands = {
 };
 
 const std::vector<std::string> kCommandsHint = {
-    "help",      "quit",     "exit", "clear", "get <key> <value>",
-    "set <key>", "rm <key>",
+    "help",     "quit", "exit", "clear", "get <key>", "set <key> <value>",
+    "rm <key>",
 };
 
-const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s+");
-const std::regex kCommandGetRegex("get\\s+(\\w+)\\s+");
-const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s+");
+const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s*");
+const std::regex kCommandGetRegex("get\\s+(\\w+)\\s*");
+const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s*");
+
+const std::string kNilOutput = "(nil)";
+
+std::ostream& error() { return std::cerr << "(error): "; }
 
 void RunREPL(mybitcask::MyBitcask* db) {
   // init the repl
@@ -100,23 +103,25 @@ void RunREPL(mybitcask::MyBitcask* db) {
     if (std::regex_match(input, sm, kCommandSetRegex)) {
       auto status = db->Insert(sm.str(1), sm.str(2));
       if (!status.ok()) {
-        std::cerr << status << std::endl;
+        error() << status << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandGetRegex)) {
       std::string v;
-      auto found = db->Get(sm.str(1), &v, 2);
+      auto found = db->Get(sm.str(1), &v);
       if (!found.ok()) {
-        std::cerr << found.status() << std::endl;
+        error() << found.status() << std::endl;
       } else if (*found) {
         std::cout << v << std::endl;
       } else {
-        std::cout << "Key: '" << sm.str(1) << "' does not exist." << std::endl;
+        std::cout << kNilOutput << std::endl;
       }
     } else if (std::regex_match(input, sm, kCommandRmRegex)) {
       auto status = db->Delete(sm.str(1));
       if (!status.ok()) {
-        std::cerr << status << std::endl;
+        error() << status << std::endl;
       }
+    } else {
+      error() << "Unrecognized command." << std::endl;
     }
   }
 }

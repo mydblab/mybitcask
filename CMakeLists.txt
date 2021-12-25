@@ -22,7 +22,7 @@ add_library(${PROJECT_NAME}
   src/store.cc
   src/mybitcask.cc
   src/store_hint.cc
-  src/worker.cc
+  src/worker_generate_hint.cc
   src/store_dbfiles.cc
  "mykv/mykv.h")
 

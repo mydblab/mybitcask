@@ -17,7 +17,7 @@ TEST(MyBitcaskTest, TestOpen) {
                             }),
                 entries.end());
   {
-    auto mybitcask_status = Open(tmpdir->path(), 2048, false);
+    auto mybitcask_status = Open(tmpdir->path(), 2048, false, true);
     ASSERT_TRUE(mybitcask_status.ok());
     std::unique_ptr<MyBitcask> mybitcask = std::move(mybitcask_status).value();
     for (auto& entry : entries) {
@@ -29,7 +29,7 @@ TEST(MyBitcaskTest, TestOpen) {
 
   // reopen
   {
-    auto mybitcask_status = Open(tmpdir->path(), 2048, false);
+    auto mybitcask_status = Open(tmpdir->path(), 2048, false, true);
     ASSERT_TRUE(mybitcask_status.ok());
     std::unique_ptr<MyBitcask> mybitcask = std::move(mybitcask_status).value();
 

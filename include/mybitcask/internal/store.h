@@ -44,6 +44,8 @@ class Store {
   Store(const ghc::filesystem::path path, file_id_t latest_file_id,
         std::uint32_t dead_bytes_threshold);
 
+  const ghc::filesystem::path& Path();
+
   ~Store();
 
  private:

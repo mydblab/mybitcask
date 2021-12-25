@@ -3,6 +3,7 @@
 
 #include "internal/log.h"
 #include "internal/store.h"
+#include "internal/worker.h"
 
 #include "absl/container/btree_map.h"
 #include "absl/status/statusor.h"
@@ -10,6 +11,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/types/optional.h"
 #include "ghc/filesystem.hpp"
+#include "spdlog/spdlog.h"
 
 #include <cstdint>
 #include <memory>
@@ -42,17 +44,28 @@ class MyBitcask {
 
  private:
   absl::optional<Position> get_position(absl::string_view key);
+  bool key_valid(const log::Key<std::string>& key);
+  absl::Status re_insert(log::Key<std::string>&& key);
+  void setup_worker(bool out_log);
 
   absl::btree_map<std::string, Position> index_;
   absl::Mutex index_rwlock_;
   std::unique_ptr<store::Store> store_;
   log::Reader log_reader_;
   log::Writer log_writer_;
+
+  std::unique_ptr<worker::Worker> generate_hint_worker_;
+  std::unique_ptr<worker::Worker> merge_worker_;
+  std::shared_ptr<spdlog::logger> logger_;
+
+  friend absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
+      const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
+      bool checksum, bool out_log = false);
 };
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
     const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-    bool checksum);
+    bool checksum, bool out_log);
 
 }  // namespace mybitcask
 
