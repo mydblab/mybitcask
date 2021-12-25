@@ -24,7 +24,7 @@ add_library(${PROJECT_NAME}
   src/store_hint.cc
   src/worker_generate_hint.cc
   src/store_dbfiles.cc
- "mykv/mykv.h")
+)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -57,18 +57,16 @@ add_executable(
   mykv/mykv.cc
 )
 
-if (NOT EMSCRIPTEN)
-  target_sources(mykv PRIVATE mykv/mykv_cliapp.cc)
-endif()
-
-
 target_link_libraries(
   mykv
   ${PROJECT_NAME}
-  clipp::clipp
   replxx::replxx
 )
 
+if (NOT EMSCRIPTEN)
+  target_link_libraries(mykv clipp::clipp)
+  target_sources(mykv PRIVATE mykv/mykv_cliapp.cc)
+endif()
 
 # google test
 find_package(Gtest)
