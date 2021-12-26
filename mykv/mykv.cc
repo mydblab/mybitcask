@@ -1,11 +1,14 @@
+#include "mybitcask/mybitcask.h"
 
+#include <algorithm>
 #include <iostream>
 #include <regex>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "absl/types/optional.h"
 #include "clipp.h"
-#include "mybitcask/mybitcask.h"
 #include "replxx.hxx"
 
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
@@ -19,6 +22,37 @@ const std::vector<std::string> kCommandsHint = {
     "rm <key>",
 };
 
+enum class CommandType : char {
+  SET,
+  GET,
+  RM,
+  QUIT,
+  CLEAR,
+  HELP,
+};
+
+const std::unordered_map<std::string, CommandType> kCommandsMap = {
+    {"set", CommandType::SET},     {"get", CommandType::GET},
+    {"rm", CommandType::RM},       {"quit", CommandType::QUIT},
+    {"clear", CommandType::CLEAR}, {"help", CommandType::HELP},
+};
+
+// EatCommandType returns `CommandType` and Remove command name string from
+// `cmd`
+absl::optional<CommandType> EatCommandType(std::string& cmd) {
+  auto cmd_type_first_char_pos = cmd.find_first_not_of(" ");
+  auto cmd_type_last_char_pos = cmd.find(" ", cmd_type_first_char_pos);
+  if (cmd_type_last_char_pos == std::string::npos) {
+    cmd_type_last_char_pos = cmd.size();
+  }
+  auto search = kCommandsMap.find(
+      cmd.substr(cmd_type_first_char_pos, cmd_type_last_char_pos));
+  if (search != kCommandsMap.end()) {
+    cmd.replace(0, cmd_type_last_char_pos, "");
+    return search->second;
+  }
+}
+
 const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s*");
 const std::regex kCommandGetRegex("get\\s+(\\w+)\\s*");
 const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s*");
@@ -27,18 +61,6 @@ const std::string kNilOutput = "(nil)";
 
 using syntax_highlight_t =
     std::vector<std::pair<std::string, replxx::Replxx::Color>>;
-using keyword_highlight_t =
-    std::unordered_map<std::string, replxx::Replxx::Color>;
-
-const keyword_highlight_t kWordColor{
-    {"help", replxx::Replxx::Color::YELLOW},
-    {"quit", replxx::Replxx::Color::YELLOW},
-    {"exit", replxx::Replxx::Color::YELLOW},
-    {"clear", replxx::Replxx::Color::YELLOW},
-    {"get", replxx::Replxx::Color::YELLOW},
-    {"set", replxx::Replxx::Color::YELLOW},
-    {"rm", replxx::Replxx::Color::YELLOW},
-};
 
 const syntax_highlight_t kRegexColor{
     {"\".*?\"", replxx::Replxx::Color::BROWN},  // double quotes
@@ -54,6 +76,9 @@ int main(int argc, char** argv) {
   bool check_crc = false;
   std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
 
+  std::string cmd = "set aa";
+  std::cout << (int)(char)*EatCommandType(cmd) << " -- " << cmd << std::endl;
+
   auto cli = (clipp::value("db path", dbpath),
               clipp::option("-c", "--checksum")
                   .set(check_crc)
@@ -65,6 +90,7 @@ int main(int argc, char** argv) {
     std::cerr << clipp::make_man_page(cli, argv[0]);
     return 0;
   };
+
   auto db = mybitcask::Open(dbpath, dead_bytes_threshold, check_crc);
   if (!db.ok()) {
     error() << "Unable to start mybitask. error: " << db.status() << std::endl;
@@ -110,8 +136,6 @@ int main(int argc, char** argv) {
                 << "help"
                 << "\t\t\tDisplays the help output" << std::endl
                 << "quit"
-                << "\t\t\tExit the repl" << std::endl
-                << "exit"
                 << "\t\t\tExit the repl" << std::endl
                 << "clear"
                 << "\t\t\tClear the screen" << std::endl;
@@ -188,7 +212,7 @@ void setup_replxx(replxx::Replxx& rx) {
                 utf8str_codepoint_len(c.c_str(), static_cast<int>(c.length()));
 
             for (int i = 0; i < len; ++i) {
-              colors.at(pos + i) = e.second;
+              colors.at(pos + i) = replxx::Replxx::Color::YELLOW;
             }
 
             pos += len;
@@ -197,10 +221,10 @@ void setup_replxx(replxx::Replxx& rx) {
         }
 
         std::string command = context.substr(0, context.find(" "));
-        auto it = kWordColor.find(command);
-        if (it != kWordColor.end()) {
+        auto it = kCommandsMap.find(command);
+        if (it != kCommandsMap.end()) {
           for (int i = 0; i < command.size(); ++i) {
-            colors.at(i) = (*it).second;
+            colors.at(i) = replxx::Replxx::Color::YELLOW;
           }
         }
       });
