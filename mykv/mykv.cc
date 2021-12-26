@@ -1,5 +1,3 @@
-#include "mybitcask/mybitcask.h"
-
 #include <algorithm>
 #include <iostream>
 #include <regex>
@@ -7,9 +5,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "absl/types/optional.h"
 #include "clipp.h"
 #include "replxx.hxx"
+
+#include "mybitcask/mybitcask.h"
 
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
 // words to be completed
@@ -23,6 +22,7 @@ const std::vector<std::string> kCommandsHint = {
 };
 
 enum class CommandType : char {
+  UNKNOW,
   SET,
   GET,
   RM,
@@ -39,8 +39,11 @@ const std::unordered_map<std::string, CommandType> kCommandsMap = {
 
 // EatCommandType returns `CommandType` and Remove command name string from
 // `cmd`
-absl::optional<CommandType> EatCommandType(std::string& cmd) {
+CommandType EatCommandType(std::string& cmd) {
   auto cmd_type_first_char_pos = cmd.find_first_not_of(" ");
+  if (cmd_type_first_char_pos == std::string::npos) {
+    cmd_type_first_char_pos = 0;
+  }
   auto cmd_type_last_char_pos = cmd.find(" ", cmd_type_first_char_pos);
   if (cmd_type_last_char_pos == std::string::npos) {
     cmd_type_last_char_pos = cmd.size();
@@ -48,9 +51,14 @@ absl::optional<CommandType> EatCommandType(std::string& cmd) {
   auto search = kCommandsMap.find(
       cmd.substr(cmd_type_first_char_pos, cmd_type_last_char_pos));
   if (search != kCommandsMap.end()) {
-    cmd.replace(0, cmd_type_last_char_pos, "");
+    auto offset = cmd.find_first_not_of(" ", cmd_type_last_char_pos);
+    if (offset == std::string::npos) {
+      offset = cmd.size();
+    }
+    cmd.replace(0, offset, "");
     return search->second;
   }
+  return CommandType::UNKNOW;
 }
 
 const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s*");
@@ -74,10 +82,7 @@ std::ostream& error() { return std::cerr << "(error): "; }
 int main(int argc, char** argv) {
   std::string dbpath;
   bool check_crc = false;
-  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
-
-  std::string cmd = "set aa";
-  std::cout << (int)(char)*EatCommandType(cmd) << " -- " << cmd << std::endl;
+  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024
 
   auto cli = (clipp::value("db path", dbpath),
               clipp::option("-c", "--checksum")

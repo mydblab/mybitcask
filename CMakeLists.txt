@@ -62,7 +62,6 @@ target_link_libraries(
   ${PROJECT_NAME}
   replxx::replxx
   clipp::clipp
-  absl::optional
 )
 
 # google test
