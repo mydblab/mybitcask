@@ -1,5 +1,8 @@
 #ifndef MYBITCASK_INCLUDE_MYBITCASK_H_
 #define MYBITCASK_INCLUDE_MYBITCASK_H_
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 
 #include "internal/log.h"
 #include "internal/store.h"
