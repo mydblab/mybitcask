@@ -13,12 +13,11 @@
 const std::string kPrompt = "\x1b[1;32mmykv\x1b[0m> ";
 // words to be completed
 const std::vector<std::string> kCommands = {
-    "help", "quit", "exit", "clear", "get ", "set ", "rm ",
+    "help", "quit", "clear", "get ", "set ", "rm ",
 };
 
 const std::vector<std::string> kCommandsHint = {
-    "help",     "quit", "exit", "clear", "get <key>", "set <key> <value>",
-    "rm <key>",
+    "help", "quit", "clear", "get <key>", "set <key> <value>", "rm <key>",
 };
 
 enum class CommandType : char {
@@ -61,9 +60,21 @@ CommandType EatCommandType(std::string& cmd) {
   return CommandType::UNKNOW;
 }
 
-const std::regex kCommandSetRegex("set\\s+(\\w+)\\s+(.+)\\s*");
-const std::regex kCommandGetRegex("get\\s+(\\w+)\\s*");
-const std::regex kCommandRmRegex("rm\\s+(\\w+)\\s*");
+const std::regex kStringRegex("\".*?\"|'.*?'|\\S+");
+std::string EatString(std::string& in) {
+  std::smatch sm;
+  std::regex_search(in, sm, kStringRegex);
+  if (sm.ready()) {
+    auto str = std::string(sm[0].first, sm[0].second);
+    in = sm.suffix();
+    str.erase(str.find_last_not_of('\'') + 1);
+    str.erase(0, str.find_first_not_of('\''));
+    str.erase(str.find_last_not_of('"') + 1);
+    str.erase(0, str.find_first_not_of('"'));
+    return str;
+  }
+  return "";
+}
 
 const std::string kNilOutput = "(nil)";
 
@@ -82,7 +93,7 @@ std::ostream& error() { return std::cerr << "(error): "; }
 int main(int argc, char** argv) {
   std::string dbpath;
   bool check_crc = false;
-  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024
+  std::uint32_t dead_bytes_threshold = 128 * 1024 * 1024;
 
   auto cli = (clipp::value("db path", dbpath),
               clipp::option("-c", "--checksum")
@@ -109,7 +120,7 @@ int main(int argc, char** argv) {
   std::cout << "Welcome to Mykv" << std::endl
             << "Press 'tab' to view autocompletions" << std::endl
             << "Type 'help' for help" << std::endl
-            << "Type 'quit' or 'exit' to exit" << std::endl;
+            << "Type 'quit' to exit" << std::endl;
 
   while (true) {
     char const* cinput = nullptr;
@@ -126,49 +137,75 @@ int main(int argc, char** argv) {
     if (input.empty()) {
       continue;
     }
-    if (input == "quit" || input == "exit") {
-      break;
-    }
-    if (input == "clear") {
-      rx.clear_screen();
-    } else if (input == "help") {
-      std::cout << "set <key> <value>"
-                << "\tSet the value of a string key to a string" << std::endl
-                << "get <key>"
-                << "\t\tGet the string value of a given string key" << std::endl
-                << "rm <key>"
-                << "\t\tRemove a given key" << std::endl
-                << "help"
-                << "\t\t\tDisplays the help output" << std::endl
-                << "quit"
-                << "\t\t\tExit the repl" << std::endl
-                << "clear"
-                << "\t\t\tClear the screen" << std::endl;
-      continue;
-    }
-    std::smatch sm;
-    if (std::regex_match(input, sm, kCommandSetRegex)) {
-      auto status = (*db)->Insert(sm.str(1), sm.str(2));
-      if (!status.ok()) {
-        error() << status << std::endl;
+
+    auto cmd = EatCommandType(input);
+    switch (cmd) {
+      case CommandType::QUIT:
+        return 0;
+        break;
+      case CommandType::CLEAR:
+        rx.clear_screen();
+        break;
+      case CommandType::HELP:
+        std::cout << "set <key> <value>"
+                  << "\tSet the value of a string key to a string" << std::endl
+                  << "get <key>"
+                  << "\t\tGet the string value of a given string key"
+                  << std::endl
+                  << "rm <key>"
+                  << "\t\tRemove a given key" << std::endl
+                  << "help"
+                  << "\t\t\tDisplays the help output" << std::endl
+                  << "quit"
+                  << "\t\t\tExit the repl" << std::endl
+                  << "clear"
+                  << "\t\t\tClear the screen" << std::endl;
+        continue;
+      case CommandType::UNKNOW:
+        error() << "Unrecognized command." << std::endl;
+        break;
+      case CommandType::GET: {
+        std::string v;
+        auto key = EatString(input);
+        if (key.empty()) {
+          error() << "Key is required" << std::endl;
+        }
+        auto found = (*db)->Get(key, &v);
+        if (!found.ok()) {
+          error() << found.status() << std::endl;
+        } else if (*found) {
+          std::cout << v << std::endl;
+        } else {
+          std::cout << kNilOutput << std::endl;
+        }
+        break;
       }
-    } else if (std::regex_match(input, sm, kCommandGetRegex)) {
-      std::string v;
-      auto found = (*db)->Get(sm.str(1), &v);
-      if (!found.ok()) {
-        error() << found.status() << std::endl;
-      } else if (*found) {
-        std::cout << v << std::endl;
-      } else {
-        std::cout << kNilOutput << std::endl;
+      case CommandType::SET: {
+        auto key = EatString(input);
+        if (key.empty()) {
+          error() << "Key is required" << std::endl;
+        }
+        auto value = EatString(input);
+        if (value.empty()) {
+          error() << "Value is required" << std::endl;
+        }
+        auto status = (*db)->Insert(key, value);
+        if (!status.ok()) {
+          error() << status << std::endl;
+        }
+        break;
       }
-    } else if (std::regex_match(input, sm, kCommandRmRegex)) {
-      auto status = (*db)->Delete(sm.str(1));
-      if (!status.ok()) {
-        error() << status << std::endl;
+      case CommandType::RM: {
+        auto key = EatString(input);
+        if (key.empty()) {
+          error() << "Key is required" << std::endl;
+        }
+        auto status = (*db)->Delete(key);
+        if (!status.ok()) {
+          error() << status << std::endl;
+        }
+        break;
       }
-    } else {
-      error() << "Unrecognized command." << std::endl;
     }
   }
 }
