@@ -88,7 +88,7 @@ void MyBitcask::setup_worker(bool out_log) {
     logger_ = spdlog::rotating_logger_mt(
         "worker", (store_->Path() / kSpdlogFilename).string(),
         kSpdlogMaxFileSize, kSpdlogMaxFiles);
-    
+
   } else {
     // empty logger
     logger_ = std::shared_ptr<spdlog::logger>(new spdlog::logger("worker"));
@@ -115,7 +115,7 @@ bool MyBitcask::key_valid(const log::Key<std::string>& key) {
   auto pos = get_position(absl::string_view(key.key_data));
   if (pos.has_value() && key.value_pos.has_value()) {
     return pos.value().value_pos == key.value_pos.value().value_pos;
-  } else if (!pos.has_value() && !pos.has_value()) {
+  } else if (!pos.has_value() && !key.value_pos.has_value()) {
     return true;
   }
   return false;
