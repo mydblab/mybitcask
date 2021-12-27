@@ -11,13 +11,14 @@ TEST(MyBitcaskTest, TestOpen) {
   ASSERT_TRUE(tmpdir.ok());
   int entries_size = 100;
   auto entries = test::RandomEntries(entries_size);
+
   entries.erase(std::unique(entries.begin(), entries.end(),
                             [](test::TestEntry& a, test::TestEntry& b) {
                               return a.key == b.key;
                             }),
                 entries.end());
   {
-    auto mybitcask_status = Open(tmpdir->path(), 2048, false, true);
+    auto mybitcask_status = Open(tmpdir->path(), 2048, false, false);
     ASSERT_TRUE(mybitcask_status.ok());
     std::unique_ptr<MyBitcask> mybitcask = std::move(mybitcask_status).value();
     for (auto& entry : entries) {
@@ -29,7 +30,7 @@ TEST(MyBitcaskTest, TestOpen) {
 
   // reopen
   {
-    auto mybitcask_status = Open(tmpdir->path(), 2048, false, true);
+    auto mybitcask_status = Open(tmpdir->path(), 2048, false, false);
     ASSERT_TRUE(mybitcask_status.ok());
     std::unique_ptr<MyBitcask> mybitcask = std::move(mybitcask_status).value();
 
@@ -44,4 +45,21 @@ TEST(MyBitcaskTest, TestOpen) {
     }
   }
 }
+
+TEST(MyBitcaskTest, TestUpdate) {
+  auto tmpdir = test::MakeTempDir("mybitcask_");
+  ASSERT_TRUE(tmpdir.ok());
+  auto mybitcask_status = Open(tmpdir->path(), 2048, false, false);
+  ASSERT_TRUE(mybitcask_status.ok());
+  std::unique_ptr<MyBitcask> mybitcask = std::move(mybitcask_status).value();
+
+  std::string v;
+  ASSERT_TRUE(mybitcask->Insert("a", "1").ok());
+  ASSERT_TRUE(mybitcask->Get("a", &v).ok());
+  ASSERT_EQ(v, "1");
+  ASSERT_TRUE(mybitcask->Insert("a", "2").ok());
+  ASSERT_TRUE(mybitcask->Get("a", &v).ok());
+  ASSERT_EQ(v, "2");
+}
+
 }  // namespace mybitcask

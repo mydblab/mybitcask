@@ -63,7 +63,7 @@ absl::Status MyBitcask::Insert(const std::string& key,
   return log_writer_.Append(MakeU8Span(key), MakeU8Span(value),
                             [&](Position pos) {
                               absl::WriterMutexLock guard(&index_rwlock_);
-                              index_.insert({key, pos});
+                              index_.insert_or_assign(key, pos);
                             });
 }
 
@@ -149,9 +149,9 @@ absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
               [](absl::btree_map<std::string, Position>&& acc,
                  store::file_id_t file_id, log::Key<std::string>&& key) {
                 if (key.value_pos.has_value()) {
-                  acc.insert({std::move(key.key_data),
+                  acc.insert_or_assign(std::move(key.key_data),
                               Position{file_id, key.value_pos->value_pos,
-                                       key.value_pos->value_len}});
+                                       key.value_pos->value_len});
                 } else {
                   acc.erase(key.key_data);
                 }
