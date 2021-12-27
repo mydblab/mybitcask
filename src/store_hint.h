@@ -58,6 +58,51 @@ class Generator {
   ghc::filesystem::path path_;
 };
 
+class KeyIter {
+ public:
+  KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id);
+
+  template <typename T, typename Container>
+  absl::StatusOr<T> Fold(
+      T init, const std::function<T(T&&, log::Key<Container>&&)>& f) noexcept {
+    std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
+                            std::ios::binary | std::ios::in);
+    if (!hint_file) {
+      return absl::InternalError(kErrRead);
+    }
+    auto&& acc = std::move(init);
+    while (true) {
+      std::uint8_t header_data[kHeaderLen]{};
+      hint_file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
+      if (hint_file.eof()) {
+        return acc;
+      }
+      if (hint_file.fail()) {
+        return absl::InternalError(kErrRead);
+      }
+      RawHeader header(header_data);
+      log::Key<Container> key{};
+      key.value_pos = header.is_tombstone()
+                          ? absl::nullopt
+                          : absl::make_optional(log::ValuePos{
+                                header.value_len(), header.value_pos()});
+      log::key_container_internal::Resize(key.key_data, header.key_len());
+      hint_file.read(
+          log::key_container_internal::GetData<Container, char>(key.key_data),
+          header.key_len());
+      if (hint_file.fail()) {
+        return absl::InternalError(kErrRead);
+      }
+      acc = f(std::move(acc), std::move(key));
+    }
+    return acc;
+  }
+
+ private:
+  const ghc::filesystem::path* path_;
+  file_id_t hint_file_id_;
+};
+
 struct DataDistribution {
   std::uint32_t valid_data_len;
   std::uint32_t total_data_len;
@@ -120,51 +165,6 @@ class Merger {
   ghc::filesystem::path path_;
   std::function<bool(const log::Key<Container>&)> key_valid_fn_;
   std::function<absl::Status(log::Key<Container>&&)> re_insert_fn_;
-};
-
-class KeyIter {
- public:
-  KeyIter(const ghc::filesystem::path* path, file_id_t hint_file_id);
-
-  template <typename T, typename Container>
-  absl::StatusOr<T> Fold(
-      T init, const std::function<T(T&&, log::Key<Container>&&)>& f) noexcept {
-    std::ifstream hint_file(*path_ / HintFilename(hint_file_id_),
-                            std::ios::binary | std::ios::in);
-    if (!hint_file) {
-      return absl::InternalError(kErrRead);
-    }
-    auto&& acc = std::move(init);
-    while (true) {
-      std::uint8_t header_data[kHeaderLen]{};
-      hint_file.read(reinterpret_cast<char*>(header_data), kHeaderLen);
-      if (hint_file.eof()) {
-        return acc;
-      }
-      if (hint_file.fail()) {
-        return absl::InternalError(kErrRead);
-      }
-      RawHeader header(header_data);
-      log::Key<Container> key{};
-      key.value_pos = header.is_tombstone()
-                          ? absl::nullopt
-                          : absl::make_optional(log::ValuePos{
-                                header.value_len(), header.value_pos()});
-      log::key_container_internal::Resize(key.key_data, header.key_len());
-      hint_file.read(
-          log::key_container_internal::GetData<Container, char>(key.key_data),
-          header.key_len());
-      if (hint_file.fail()) {
-        return absl::InternalError(kErrRead);
-      }
-      acc = f(std::move(acc), std::move(key));
-    }
-    return acc;
-  }
-
- private:
-  const ghc::filesystem::path* path_;
-  file_id_t hint_file_id_;
 };
 
 }  // namespace hint

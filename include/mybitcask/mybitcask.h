@@ -64,12 +64,12 @@ class MyBitcask {
 
   friend absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
       const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-      bool checksum, bool out_log = false);
+      bool checksum, bool out_log);
 };
 
 absl::StatusOr<std::unique_ptr<MyBitcask>> Open(
     const ghc::filesystem::path& data_dir, std::uint32_t dead_bytes_threshold,
-    bool checksum, bool out_log);
+    bool checksum, bool out_log = false);
 
 }  // namespace mybitcask
 
