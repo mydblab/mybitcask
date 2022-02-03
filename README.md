@@ -10,3 +10,16 @@ mybitcask-mysql is a MySQL pluggable storage engine based on Mybitcask.
 
 ## Improvements to bitcask
 TODO
+
+## mykv
+A simple cli tool
+
+![](https://github.com/mydblab/mybitcask/blob/master/screenshots/mykv.png?raw=true)
+
+### build
+```sh
+mkdir build
+cmake --build ./build --target mykv -j 8
+mkdir db_data
+./build/mykv ./db_data
+```
