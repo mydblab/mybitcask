@@ -14,7 +14,7 @@ TODO
 ## mykv
 A simple cli tool
 
-![](https://github.com/mydblab/mybitcask/blob/master/screenshots/mykv.png?raw=true)
+![](https://github.com/mydblab/mybitcask/blob/develop/screenshots/mykv.png?raw=true)
 
 ### build
 ```sh
