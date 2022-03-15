@@ -83,22 +83,20 @@ absl::StatusOr<io::RandomAccessReader*> Store::reader(file_id_t file_id) {
   latest_file_lock_.ReaderLock();
   if (file_id == latest_file_id_) {
     latest_file_lock_.ReaderUnlock();
-    latest_file_lock_.Lock();
+    absl::WriterMutexLock writerGuard(&latest_file_lock_);
     if (nullptr == latest_reader_) {
       auto reader =
           io::OpenRandomAccessFileReader(path_ / LogFilename(latest_file_id_));
       if (!reader.ok()) {
-        latest_file_lock_.Unlock();
         return absl::Status(reader.status());
       }
       latest_reader_ = std::move(reader).value();
     }
-    latest_file_lock_.Unlock();
     return latest_reader_.get();
   }
   latest_file_lock_.ReaderUnlock();
   {
-    absl::ReaderMutexLock latest_file_lock(&latest_file_lock_);
+    absl::ReaderMutexLock readerGuard(&latest_file_lock_);
     readers_lock_.ReaderLock();
     auto it = readers_.find(file_id);
     if (it == readers_.end()) {
